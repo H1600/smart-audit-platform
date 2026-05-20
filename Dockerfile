@@ -1,19 +1,32 @@
-FROM python:3.10-slim AS builder
+FROM python:3.10-bookworm AS builder
 
 WORKDIR /app
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
+# 避免交互提示
+ARG DEBIAN_FRONTEND=noninteractive
+
+# 使用阿里云 Debian 镜像源，提升下载稳定性
+RUN rm -rf /etc/apt/sources.list.d/* || true && \
+    printf "deb http://mirrors.aliyun.com/debian/ bookworm main contrib non-free\n" \
+    "deb-src http://mirrors.aliyun.com/debian/ bookworm main contrib non-free\n" \
+    "deb http://mirrors.aliyun.com/debian-security bookworm-security main contrib non-free\n" \
+    "deb-src http://mirrors.aliyun.com/debian-security bookworm-security main contrib non-free\n" \
+    "deb http://mirrors.aliyun.com/debian/ bookworm-updates main contrib non-free\n" \
+    "deb-src http://mirrors.aliyun.com/debian/ bookworm-updates main contrib non-free\n" \
+    > /etc/apt/sources.list
+
 # 安装编译依赖和系统库
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get -o Acquire::Retries=3 update && apt-get -o Acquire::Retries=3 install -y --no-install-recommends \
     gcc \
     build-essential \
-    libgl1-mesa-glx \
+    libgl1 \
     libglib2.0-0 \
     libsm6 \
     libxext6 \
-    libxrender-dev \
+    libxrender1 \
     libgomp1 \
     wget \
     && rm -rf /var/lib/apt/lists/*
@@ -26,7 +39,7 @@ RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
 # ========== 运行阶段 ==========
-FROM python:3.10-slim
+FROM python:3.10-bookworm
 
 WORKDIR /app
 
@@ -34,13 +47,25 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     TZ=Asia/Shanghai
 
+ARG DEBIAN_FRONTEND=noninteractive
+
+# 使用阿里云 Debian 镜像源，提升下载稳定性（运行阶段）
+RUN rm -rf /etc/apt/sources.list.d/* || true && \
+    printf "deb http://mirrors.aliyun.com/debian/ bookworm main contrib non-free\n" \
+    "deb-src http://mirrors.aliyun.com/debian/ bookworm main contrib non-free\n" \
+    "deb http://mirrors.aliyun.com/debian-security bookworm-security main contrib non-free\n" \
+    "deb-src http://mirrors.aliyun.com/debian-security bookworm-security main contrib non-free\n" \
+    "deb http://mirrors.aliyun.com/debian/ bookworm-updates main contrib non-free\n" \
+    "deb-src http://mirrors.aliyun.com/debian/ bookworm-updates main contrib non-free\n" \
+    > /etc/apt/sources.list
+
 # 仅复制运行时需要的系统库
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libgl1-mesa-glx \
+RUN apt-get -o Acquire::Retries=3 update && apt-get -o Acquire::Retries=3 install -y --no-install-recommends \
+    libgl1 \
     libglib2.0-0 \
     libsm6 \
     libxext6 \
-    libxrender-dev \
+    libxrender1 \
     libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
