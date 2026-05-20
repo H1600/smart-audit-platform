@@ -1,0 +1,31 @@
+services:
+  audit-platform:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: smart-audit-platform
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+      - ./storage:/app/storage
+      - ./logs:/app/logs
+    environment:
+      - TZ=Asia/Shanghai
+      - OCR_ENGINE=auto
+      - OCR_LANGS=zh,en
+      - OCR_MIN_CONF=0.5
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    networks:
+      - audit-net
+
+networks:
+  audit-net:
+    driver: bridge
+

@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>智能财务审计数据处理平台</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="brand-icon">审</span>
+        <div class="brand-text">
+          <strong>智能财务审计</strong>
+          <small>本地数据处理平台</small>
+        </div>
+      </div>
+      <nav>
+        <button class="nav-item active" data-view="dashboard">
+          <span class="nav-icon">📊</span><span>工作台</span>
+        </button>
+        <button class="nav-item" data-view="upload">
+          <span class="nav-icon">📤</span><span>文件上传</span>
+        </button>
+        <button class="nav-item" data-view="tasks">
+          <span class="nav-icon">📋</span><span>任务详情</span>
+        </button>
+        <button class="nav-item" data-view="records">
+          <span class="nav-icon">📑</span><span>数据结果</span>
+        </button>
+        <button class="nav-item" data-view="exports">
+          <span class="nav-icon">📦</span><span>导出中心</span>
+        </button>
+        <button class="nav-item" data-view="settings">
+          <span class="nav-icon">⚙️</span><span>系统设置</span>
+        </button>
+      </nav>
+      <div class="sidebar-footer">v1.0 · 本地离线运行</div>
+    </aside>
+
+    <!-- Main -->
+    <main class="shell">
+      <!-- Hero -->
+      <section class="hero-card">
+        <p class="eyebrow">本地部署 · 离线可用 · 审计闭环</p>
+        <h1>智能财务审计数据处理平台</h1>
+        <p class="hero-copy">统一承接上传、识别、清洗、校验、导出全流程，面向本地审计作业场景，强调可追溯、可复核、可离线运行。</p>
+        <div class="hero-actions">
+          <button class="btn btn-primary" data-jump="upload">📤 立即上传</button>
+          <button class="btn btn-secondary" data-jump="tasks">📋 查看任务</button>
+        </div>
+        <div class="hero-chips">
+          <span>OCR 识别</span><span>ETL 清洗</span><span>勾稽校验</span><span>SQLite 入库</span><span>Docker 部署</span>
+        </div>
+      </section>
+
+      <!-- Top Bar -->
+      <header class="topbar">
+        <div class="topbar-left">
+          <h1 id="viewTitle">工作台</h1>
+          <p id="viewSubtitle">查看系统状态、任务进度与异常提醒</p>
+        </div>
+        <div class="health-badge">
+          <span id="healthDot"></span>
+          <span id="healthText">检测中</span>
+        </div>
+      </header>
+
+      <!-- ==================== Dashboard ==================== -->
+      <section id="dashboard" class="view active">
+        <div class="status-strip">
+          <div class="stat-card"><span class="stat-label">部署模式</span><span class="stat-value">🏠 本地优先</span></div>
+          <div class="stat-card"><span class="stat-label">处理引擎</span><span class="stat-value">🔍 OCR + ETL</span></div>
+          <div class="stat-card"><span class="stat-label">数据存储</span><span class="stat-value">🗄️ SQLite</span></div>
+          <div class="stat-card"><span class="stat-label">访问方式</span><span class="stat-value">🌐 浏览器 UI</span></div>
+        </div>
+
+        <div class="metrics">
+          <div class="metric-card primary">
+            <div class="metric-icon">⏳</div>
+            <span class="metric-label">待处理任务</span>
+            <span class="metric-number" id="metricPending">0</span>
+          </div>
+          <div class="metric-card success">
+            <div class="metric-icon">✅</div>
+            <span class="metric-label">已完成任务</span>
+            <span class="metric-number" id="metricDone">0</span>
+          </div>
+          <div class="metric-card accent">
+            <div class="metric-icon">📄</div>
+            <span class="metric-label">结构化记录</span>
+            <span class="metric-number" id="metricRecords">0</span>
+          </div>
+          <div class="metric-card danger">
+            <div class="metric-icon">⚠️</div>
+            <span class="metric-label">异常记录</span>
+            <span class="metric-number" id="metricExceptions">0</span>
+          </div>
+        </div>
+
+        <div class="grid two">
+          <!-- 最近任务 — 垂直滑动 -->
+          <section class="panel">
+            <div class="panel-head">
+              <h2>📌 最近任务</h2>
+              <button class="btn btn-ghost btn-sm" id="refreshTasksBtn">🔄 刷新</button>
+            </div>
+            <div class="scroll-area">
+              <div id="recentTasks" class="scroll-y"></div>
+            </div>
+          </section>
+          <!-- 异常提醒 — 垂直滑动 -->
+          <section class="panel">
+            <div class="panel-head">
+              <h2>🚨 异常提醒</h2>
+              <button class="btn btn-ghost btn-sm" data-jump="records">查看全部</button>
+            </div>
+            <div class="scroll-area">
+              <div id="exceptionList" class="scroll-y"></div>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <!-- ==================== Upload ==================== -->
+      <section id="upload" class="view">
+        <div class="panel upload-panel">
+          <div class="section-note">
+            <strong>📎 上传建议</strong>
+            <p>优先上传原始 PDF、Excel 或 CSV。系统会在本地自动生成任务并给出可追溯的处理日志。</p>
+          </div>
+          <div id="dropZone" class="drop-zone">
+            <input id="fileInput" type="file" multiple accept=".pdf,.png,.jpg,.jpeg,.bmp,.tif,.tiff,.xlsx,.xls,.csv" />
+            <span class="dz-icon">📁</span>
+            <strong>拖拽或选择财务文件</strong>
+            <span>支持 PDF、图片、Excel、CSV；上传后自动生成处理任务</span>
+          </div>
+          <div id="uploadQueue" class="queue"></div>
+        </div>
+      </section>
+
+      <!-- ==================== Tasks ==================== -->
+      <section id="tasks" class="view">
+        <div class="grid two">
+          <!-- 任务队列 — 垂直滑动 -->
+          <section class="panel">
+            <div class="panel-head">
+              <h2>📋 任务队列</h2>
+              <button class="btn btn-ghost btn-sm" id="reloadTaskListBtn">🔄 刷新</button>
+            </div>
+            <div class="scroll-area">
+              <div id="taskList" class="scroll-y"></div>
+            </div>
+          </section>
+          <!-- 任务详情 -->
+          <section class="panel">
+            <div class="panel-head">
+              <h2>📝 处理日志与校验</h2>
+              <button class="btn btn-primary btn-sm" id="rerunTaskBtn" disabled>🔄 重试任务</button>
+            </div>
+            <div id="taskDetail" class="detail-empty">选择一个任务查看进度、日志和报告</div>
+          </section>
+        </div>
+      </section>
+
+      <!-- ==================== Records ==================== -->
+      <section id="records" class="view">
+        <section class="panel">
+          <div class="section-note">
+            <strong>🔍 结果查询</strong>
+            <p>可按日期、科目、凭证号和金额筛选，点击任一记录查看来源定位和结构化明细。</p>
+          </div>
+          <div class="filters">
+            <div class="filter-group">
+              <label>开始日期</label>
+              <input id="startDate" type="date" />
+            </div>
+            <div class="filter-group">
+              <label>结束日期</label>
+              <input id="endDate" type="date" />
+            </div>
+            <div class="filter-group">
+              <label>科目</label>
+              <input id="accountFilter" placeholder="编码或名称" />
+            </div>
+            <div class="filter-group">
+              <label>凭证号</label>
+              <input id="voucherFilter" placeholder="凭证号" />
+            </div>
+            <div class="filter-group">
+              <label>最小金额</label>
+              <input id="minAmount" type="number" step="0.01" />
+            </div>
+            <div class="filter-group" style="display:flex; align-items:end;">
+              <button class="btn btn-primary" id="searchBtn">🔍 查询</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>日期</th><th>凭证号</th><th>科目</th><th>摘要</th><th>借方</th><th>贷方</th><th>余额</th><th>状态</th>
+                </tr>
+              </thead>
+              <tbody id="recordRows"></tbody>
+            </table>
+          </div>
+          <div class="pager">
+            <span id="recordTotal">0 条记录</span>
+            <button class="btn btn-ghost btn-sm" id="prevPage">◀ 上一页</button>
+            <button class="btn btn-ghost btn-sm" id="nextPage">下一页 ▶</button>
+          </div>
+        </section>
+      </section>
+
+      <!-- ==================== Exports ==================== -->
+      <section id="exports" class="view">
+        <div class="grid two">
+          <section class="panel">
+            <div class="section-note">
+              <strong>📦 导出中心</strong>
+              <p>从已完成任务导出 Excel、简易 XBRL 或校验报告，便于本地留档和复核。</p>
+            </div>
+            <div class="export-form">
+              <div class="filter-group">
+                <label>选择已完成任务</label>
+                <select id="exportTaskSelect">
+                  <option value="">— 请选择任务 —</option>
+                </select>
+              </div>
+              <div class="filter-group">
+                <label>导出格式</label>
+                <div class="export-format-grid">
+                  <label class="format-option active" data-format="excel">
+                    <input type="radio" name="exportFormat" value="excel" checked hidden />
+                    <span class="format-icon">📊</span>
+                    <span class="format-name">Excel</span>
+                    <span class="format-desc">结构化表格，适合 Excel 打开</span>
+                  </label>
+                  <label class="format-option" data-format="xbrl">
+                    <input type="radio" name="exportFormat" value="xbrl" hidden />
+                    <span class="format-icon">📄</span>
+                    <span class="format-name">简易 XBRL</span>
+                    <span class="format-desc">可扩展商业报告语言</span>
+                  </label>
+                  <label class="format-option" data-format="report">
+                    <input type="radio" name="exportFormat" value="report" hidden />
+                    <span class="format-icon">📋</span>
+                    <span class="format-name">校验报告</span>
+                    <span class="format-desc">含勾稽规则检查结果</span>
+                  </label>
+                </div>
+              </div>
+              <button class="btn btn-primary" id="exportBtn">📥 开始导出</button>
+              <div id="exportHint" class="hint"></div>
+            </div>
+          </section>
+          <section class="panel">
+            <div class="panel-head">
+              <h2>📜 导出历史</h2>
+              <button class="btn btn-ghost btn-sm" id="clearExportHistoryBtn">🗑️ 清空</button>
+            </div>
+            <div class="scroll-area">
+              <div id="exportHistory" class="scroll-y">
+                <div class="detail-empty">暂无导出记录</div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <!-- ==================== Settings ==================== -->
+      <section id="settings" class="view">
+        <div class="grid two">
+          <section class="panel settings-panel">
+            <div class="section-note">
+              <strong>⚙️ 系统设置</strong>
+              <p>配置本地 OCR、输出目录与日志策略，修改后自动保存至本地。</p>
+            </div>
+            <div class="settings-group">
+              <div class="filter-group">
+                <label>OCR 引擎</label>
+                <select id="setOcrEngine">
+                  <option value="paddleocr">PaddleOCR（推荐）</option>
+                  <option value="easyocr">EasyOCR（备选）</option>
+                </select>
+              </div>
+              <div class="filter-group">
+                <label>OCR 识别语言</label>
+                <input id="setOcrLangs" value="ch,en" placeholder="如 ch,en" />
+              </div>
+              <div class="filter-group">
+                <label>OCR 最小置信度</label>
+                <input id="setOcrConf" type="number" min="0" max="1" step="0.05" value="0.5" />
+              </div>
+              <div class="filter-group">
+                <label>OCR 模型路径</label>
+                <input id="setOcrModelDir" value="./models/paddleocr" />
+              </div>
+              <div class="filter-group">
+                <label>输出目录</label>
+                <input id="setExportDir" value="./storage/exports" />
+              </div>
+              <div class="filter-group">
+                <label>日志级别</label>
+                <select id="setLogLevel">
+                  <option value="INFO">INFO</option>
+                  <option value="DEBUG">DEBUG</option>
+                  <option value="WARNING">WARNING</option>
+                  <option value="ERROR">ERROR</option>
+                </select>
+              </div>
+              <div class="filter-group">
+                <label>默认导出格式</label>
+                <select id="setDefaultFormat">
+                  <option value="excel">Excel</option>
+                  <option value="xbrl">简易 XBRL</option>
+                  <option value="report">校验报告</option>
+                </select>
+              </div>
+              <div class="filter-group" style="display: flex; gap: 8px; align-items: end; flex-direction: row;">
+                <button class="btn btn-primary" id="saveSettingsBtn">💾 保存设置</button>
+                <button class="btn btn-ghost" id="resetSettingsBtn">↩️ 恢复默认</button>
+              </div>
+              <div id="settingsHint" class="hint"></div>
+            </div>
+          </section>
+          <section class="panel">
+            <div class="panel-head">
+              <h2>📊 系统信息</h2>
+            </div>
+            <div class="sys-info">
+              <div class="sys-row"><span class="sys-label">平台版本</span><span class="sys-value">v1.0.0</span></div>
+              <div class="sys-row"><span class="sys-label">后端状态</span><span class="sys-value" id="sysBackendStatus">检测中</span></div>
+              <div class="sys-row"><span class="sys-label">OCR 状态</span><span class="sys-value" id="sysOcrStatus">检测中</span></div>
+              <div class="sys-row"><span class="sys-label">数据库</span><span class="sys-value">SQLite</span></div>
+              <div class="sys-row"><span class="sys-label">数据目录</span><span class="sys-value" id="sysDataDir">./data</span></div>
+              <div class="sys-row"><span class="sys-label">任务总数</span><span class="sys-value" id="sysTaskCount">-</span></div>
+              <div class="sys-row"><span class="sys-label">记录总数</span><span class="sys-value" id="sysRecordCount">-</span></div>
+            </div>
+          </section>
+        </div>
+      </section>
+    </main>
+
+    <!-- Record Dialog -->
+    <dialog id="recordDialog">
+      <div class="dialog-head">
+        <h2>📌 来源定位</h2>
+        <button class="btn btn-ghost btn-sm" id="closeDialog">✕ 关闭</button>
+      </div>
+      <pre id="recordDetail"></pre>
+    </dialog>
+
+    <script src="/app.js"></script>
+  </body>
+</html>
+
