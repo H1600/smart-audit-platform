@@ -199,35 +199,150 @@ function recordQuery() {
 }
 
 async function loadRecords() {
-  const data = await api(`/api/records?${recordQuery()}`);
-  state.recordsTotal = data.total;
-  $("#recordTotal").textContent = `${data.total} 条记录 · 第 ${data.page} 页`;
+  const panel = $(".records-panel");
+  panel.classList.add("records-loading");
 
-  $("#recordRows").innerHTML = data.items
-    .map(
-      (r) =>
-        `<tr class="${r.is_exception ? "exception" : ""}" data-record="${r.id}">
-          <td>${r.date || "-"}</td>
-          <td>${r.voucher_no || "-"}</td>
-          <td>${r.account_code || "-"} ${r.account_name || ""}</td>
-          <td title="${r.summary}">${r.summary}</td>
-          <td>${money(r.debit)}</td>
-          <td>${money(r.credit)}</td>
-          <td>${money(r.balance)}</td>
-          <td>${r.is_exception ? '<span class="badge warn">异常</span>' : '<span class="badge ok">正常</span>'}</td>
-        </tr>`
-    )
-    .join("");
+  try {
+    const data = await api(`/api/records?${recordQuery()}`);
+    state.recordsTotal = data.total;
+    state.recordPage = data.page;
 
-  $$("tbody tr").forEach((el) =>
-    el.addEventListener("click", () => openRecord(Number(el.dataset.record)))
-  );
+    const totalPages = Math.max(1, Math.ceil(data.total / state.pageSize));
+    $("#recordTotal").textContent = `${data.total} 条记录`;
+    $("#totalPages").textContent = totalPages;
+    $("#pageInput").value = data.page;
+    $("#prevPage").disabled = data.page <= 1;
+    $("#nextPage").disabled = data.page >= totalPages;
+
+    // 计算汇总
+    let debitSum = 0, creditSum = 0, excCount = 0;
+    data.items.forEach(r => {
+      debitSum += r.debit || 0;
+      creditSum += r.credit || 0;
+      if (r.is_exception) excCount++;
+    });
+    $("#scTotal").textContent = data.total;
+    $("#scDebit").textContent = `¥${money(debitSum)}`;
+    $("#scCredit").textContent = `¥${money(creditSum)}`;
+    $("#scException").textContent = excCount;
+
+    // 空值友好展示函数
+    const nv = (v, fallback = "—") => (v && String(v).trim()) ? v : `<span class="null-placeholder">${fallback}</span>`;
+    const mc = (v) => money(v);
+
+    if (!data.items.length) {
+      $("#recordRows").innerHTML = '<tr class="empty-row"><td colspan="9">暂无匹配记录，试试调整筛选条件</td></tr>';
+      return;
+    }
+
+    $("#recordRows").innerHTML = data.items
+      .map(
+        (r, i) =>
+          `<tr class="${r.is_exception ? "exception" : ""}" data-record="${r.id}">
+            <td style="color:var(--text-tertiary);font-size:12px">${(data.page - 1) * state.pageSize + i + 1}</td>
+            <td>${nv(r.date)}</td>
+            <td>${nv(r.voucher_no)}</td>
+            <td>${r.account_code ? `<span style="color:var(--text-secondary)">${r.account_code}</span>` : ""} ${nv(r.account_name, "未映射")}</td>
+            <td title="${r.summary || ""}">${r.summary ? r.summary.slice(0, 32) + (r.summary.length > 32 ? "…" : "") : '<span class="null-placeholder">无摘要</span>'}</td>
+            <td class="money-cell">${mc(r.debit)}</td>
+            <td class="money-cell">${mc(r.credit)}</td>
+            <td class="money-cell">${mc(r.balance)}</td>
+            <td>${r.is_exception ? '<span class="badge warn">异常</span>' : '<span class="badge ok">正常</span>'}</td>
+          </tr>`
+      )
+      .join("");
+
+    $$("tbody tr").forEach((el) =>
+      el.addEventListener("click", () => openRecord(Number(el.dataset.record)))
+    );
+  } finally {
+    panel.classList.remove("records-loading");
+  }
+}
+
+function goToPage(p) {
+  const totalPages = Math.max(1, Math.ceil(state.recordsTotal / state.pageSize));
+  const page = Math.max(1, Math.min(totalPages, p));
+  if (page !== state.recordPage) {
+    state.recordPage = page;
+    loadRecords();
+  }
 }
 
 async function openRecord(id) {
   const detail = await api(`/api/records/${id}`);
-  $("#recordDetail").textContent = JSON.stringify(detail, null, 2);
-  $("#recordDialog").showModal();
+
+  // 空值友好
+  const nv = (v, fb = "—") => (v && String(v).trim()) ? v : `<span class="null-placeholder">${fb}</span>`;
+
+  const body = $("#drawerBody");
+  body.innerHTML = `
+    <div class="drawer-record-card">
+      <div class="drawer-field">
+        <span class="df-label">记录编号</span>
+        <span class="df-value">#${detail.id}</span>
+      </div>
+      <div class="drawer-field">
+        <span class="df-label">任务</span>
+        <span class="df-value">任务 #${detail.task_id} ${detail.file_id ? '· 文件 #' + detail.file_id : ''}</span>
+      </div>
+      <div class="drawer-field">
+        <span class="df-label">日期</span>
+        <span class="df-value">${nv(detail.date)}</span>
+      </div>
+      <div class="drawer-field">
+        <span class="df-label">凭证号</span>
+        <span class="df-value">${nv(detail.voucher_no)}</span>
+      </div>
+      <div class="drawer-field">
+        <span class="df-label">科目</span>
+        <span class="df-value">${detail.account_code ? `<span style="color:var(--text-secondary)">${detail.account_code}</span> ` : ""}${nv(detail.account_name, "未映射")}</span>
+      </div>
+      <div class="drawer-field">
+        <span class="df-label">摘要</span>
+        <span class="df-value">${nv(detail.summary, "无摘要")}</span>
+      </div>
+      <div class="drawer-field">
+        <span class="df-label">借方金额</span>
+        <span class="df-value money">¥${money(detail.debit)}</span>
+      </div>
+      <div class="drawer-field">
+        <span class="df-label">贷方金额</span>
+        <span class="df-value money">¥${money(detail.credit)}</span>
+      </div>
+      <div class="drawer-field">
+        <span class="df-label">余额</span>
+        <span class="df-value money">¥${money(detail.balance)}</span>
+      </div>
+      ${detail.is_exception ? `
+      <div class="drawer-field">
+        <span class="df-label">异常原因</span>
+        <span class="df-value exception-reason">${detail.exception_reason}</span>
+      </div>` : ''}
+      <div class="drawer-section-title">来源定位</div>
+      <div class="drawer-field">
+        <span class="df-label">来源页码</span>
+        <span class="df-value">${detail.source_page || 1}</span>
+      </div>
+      <div class="drawer-field">
+        <span class="df-label">来源行号</span>
+        <span class="df-value">${detail.source_row || "—"}</span>
+      </div>
+      <div class="drawer-raw-json">${JSON.stringify(detail.source_text ? JSON.parse(detail.source_text) : {}, null, 2)}</div>
+      <div class="drawer-section-title">完整数据</div>
+      <div class="drawer-raw-json">${JSON.stringify(detail, null, 2)}</div>
+    </div>`;
+
+  // 打开抽屉
+  $("#detailDrawer").classList.add("open");
+  $("#drawerOverlay").classList.add("show");
+  $(".records-panel").classList.add("drawer-open");
+}
+
+function closeDrawer() {
+  $("#detailDrawer").classList.remove("open");
+  $("#drawerOverlay").classList.remove("show");
+  $(".records-panel").classList.remove("drawer-open");
 }
 
 /* ===== Dashboard ===== */
@@ -457,19 +572,40 @@ function bindEvents() {
     state.recordPage = 1;
     loadRecords();
   });
+  // Enter 键在筛选输入框触发查询
+  $$("#startDate, #endDate, #accountFilter, #voucherFilter, #minAmount").forEach(el => {
+    el.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        state.recordPage = 1;
+        loadRecords();
+      }
+    });
+  });
   $("#prevPage").addEventListener("click", () => {
-    state.recordPage = Math.max(1, state.recordPage - 1);
-    loadRecords();
+    if (state.recordPage > 1) { state.recordPage--; loadRecords(); }
   });
   $("#nextPage").addEventListener("click", () => {
-    if (state.recordPage * state.pageSize < state.recordsTotal) state.recordPage++;
+    if (state.recordPage * state.pageSize < state.recordsTotal) { state.recordPage++; loadRecords(); }
+  });
+  // 页数输入跳转
+  $("#pageInput").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") goToPage(parseInt(e.target.value, 10));
+  });
+  $("#pageInput").addEventListener("blur", (e) => {
+    goToPage(parseInt(e.target.value, 10));
+  });
+  // 每页条数切换
+  $("#pageSizeSelect").addEventListener("change", (e) => {
+    state.pageSize = parseInt(e.target.value, 10);
+    state.recordPage = 1;
     loadRecords();
   });
 
   $$("[data-export]").forEach((el) =>
     el.addEventListener("click", () => exportTask(el.dataset.export))
   );
-  $("#closeDialog").addEventListener("click", () => $("#recordDialog").close());
+  $("#closeDrawer").addEventListener("click", closeDrawer);
+  $("#drawerOverlay").addEventListener("click", closeDrawer);
 
   // Export format selection
   $$(".format-option").forEach(el => {

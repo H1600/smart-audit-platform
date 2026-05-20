@@ -166,11 +166,27 @@
 
       <!-- ==================== Records ==================== -->
       <section id="records" class="view">
-        <section class="panel">
-          <div class="section-note">
-            <strong>🔍 结果查询</strong>
-            <p>可按日期、科目、凭证号和金额筛选，点击任一记录查看来源定位和结构化明细。</p>
+        <!-- 审计汇总卡片 -->
+        <div class="audit-summary">
+          <div class="summary-card sc-total">
+            <span class="sc-label">总记录</span>
+            <span class="sc-value" id="scTotal">0</span>
           </div>
+          <div class="summary-card sc-debit">
+            <span class="sc-label">借方合计</span>
+            <span class="sc-value" id="scDebit">¥0.00</span>
+          </div>
+          <div class="summary-card sc-credit">
+            <span class="sc-label">贷方合计</span>
+            <span class="sc-value" id="scCredit">¥0.00</span>
+          </div>
+          <div class="summary-card sc-exception">
+            <span class="sc-label">异常记录</span>
+            <span class="sc-value" id="scException">0</span>
+          </div>
+        </div>
+        <!-- 筛选与表格区 -->
+        <section class="panel records-panel">
           <div class="filters">
             <div class="filter-group">
               <label>开始日期</label>
@@ -200,18 +216,48 @@
             <table>
               <thead>
                 <tr>
-                  <th>日期</th><th>凭证号</th><th>科目</th><th>摘要</th><th>借方</th><th>贷方</th><th>余额</th><th>状态</th>
+                  <th style="width:32px">#</th>
+                  <th>日期</th>
+                  <th>凭证号</th>
+                  <th>科目</th>
+                  <th>摘要</th>
+                  <th style="text-align:right">借方</th>
+                  <th style="text-align:right">贷方</th>
+                  <th style="text-align:right">余额</th>
+                  <th style="width:72px">状态</th>
                 </tr>
               </thead>
-              <tbody id="recordRows"></tbody>
+              <tbody id="recordRows">
+                <tr class="empty-row"><td colspan="9">暂无数据，请先上传并处理文件</td></tr>
+              </tbody>
             </table>
           </div>
           <div class="pager">
-            <span id="recordTotal">0 条记录</span>
-            <button class="btn btn-ghost btn-sm" id="prevPage">◀ 上一页</button>
-            <button class="btn btn-ghost btn-sm" id="nextPage">下一页 ▶</button>
+            <span id="recordTotal" class="record-total">0 条记录</span>
+            <div class="pager-nav">
+              <button class="btn btn-ghost btn-sm" id="prevPage" disabled>◀</button>
+              <span class="pager-text">第 <input id="pageInput" type="number" min="1" class="pager-input" /> 页 / <span id="totalPages">1</span> 页</span>
+              <button class="btn btn-ghost btn-sm" id="nextPage">▶</button>
+            </div>
+            <select id="pageSizeSelect" class="pager-size">
+              <option value="10">10 条/页</option>
+              <option value="20" selected>20 条/页</option>
+              <option value="50">50 条/页</option>
+              <option value="100">100 条/页</option>
+            </select>
           </div>
         </section>
+        <!-- 右侧抽屉：详情面板 -->
+        <aside class="drawer" id="detailDrawer">
+          <div class="drawer-head">
+            <h3>📌 记录详情</h3>
+            <button class="btn-icon" id="closeDrawer">✕</button>
+          </div>
+          <div class="drawer-body" id="drawerBody">
+            <div class="detail-empty">选择一条记录查看明细</div>
+          </div>
+        </aside>
+        <div class="drawer-overlay" id="drawerOverlay"></div>
       </section>
 
       <!-- ==================== Exports ==================== -->
@@ -344,14 +390,7 @@
       </section>
     </main>
 
-    <!-- Record Dialog -->
-    <dialog id="recordDialog">
-      <div class="dialog-head">
-        <h2>📌 来源定位</h2>
-        <button class="btn btn-ghost btn-sm" id="closeDialog">✕ 关闭</button>
-      </div>
-      <pre id="recordDetail"></pre>
-    </dialog>
+    <!-- 旧 dialog 已废弃，改用右侧抽屉 -->
 
     <script src="/app.js"></script>
   </body>
