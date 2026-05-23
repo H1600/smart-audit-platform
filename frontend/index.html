@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>智能财务审计数据处理平台</title>
     <link rel="stylesheet" href="/styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
   </head>
   <body>
     <!-- Sidebar -->
@@ -28,6 +29,18 @@
         </button>
         <button class="nav-item" data-view="records">
           <span class="nav-icon">📑</span><span>数据结果</span>
+        </button>
+        <button class="nav-item" data-view="analysis">
+          <span class="nav-icon">📈</span><span>分析看板</span>
+        </button>
+        <button class="nav-item" data-view="sampling">
+          <span class="nav-icon">🎲</span><span>审计抽样</span>
+        </button>
+        <button class="nav-item" data-view="ai">
+          <span class="nav-icon">🤖</span><span>AI 助手</span>
+        </button>
+        <button class="nav-item" data-view="workflows">
+          <span class="nav-icon">⚡</span><span>自动审计</span>
         </button>
         <button class="nav-item" data-view="exports">
           <span class="nav-icon">📦</span><span>导出中心</span>
@@ -260,7 +273,304 @@
         <div class="drawer-overlay" id="drawerOverlay"></div>
       </section>
 
-      <!-- ==================== Exports ==================== -->
+      <!-- ==================== Analysis ==================== -->
+      <section id="analysis" class="view">
+        <div class="analysis-toolbar">
+          <button class="btn btn-primary btn-sm" id="refreshAnalysisBtn">🔄 刷新数据</button>
+          <span class="analysis-hint" id="analysisHint"></span>
+        </div>
+        <div class="grid two">
+          <div class="panel">
+            <div class="panel-head"><h2>📈 月度借贷趋势</h2></div>
+            <div class="chart-wrap"><canvas id="trendChart"></canvas></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h2>🥧 科目借方分布</h2></div>
+            <div class="chart-wrap"><canvas id="accountPie"></canvas></div>
+          </div>
+        </div>
+        <div class="grid two" style="margin-top:16px">
+          <div class="panel">
+            <div class="panel-head"><h2>📊 异常类型分布</h2></div>
+            <div class="chart-wrap"><canvas id="exceptionChart"></canvas></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h2>📉 金额区间分布</h2></div>
+            <div class="chart-wrap"><canvas id="amountHist"></canvas></div>
+          </div>
+        </div>
+        <div class="grid three" style="margin-top:16px" id="analysisStats"></div>
+      </section>
+
+      <!-- ==================== Sampling ==================== -->
+      <section id="sampling" class="view">
+        <div class="grid two">
+          <div class="panel">
+            <div class="section-note">
+              <strong>🎲 审计抽样</strong>
+              <p>支持随机抽样、分层抽样、大额抽样三种方式，抽样结果可导出。</p>
+            </div>
+            <div class="sampling-form">
+              <div class="filter-group">
+                <label>抽样方法</label>
+                <select id="sampMethod">
+                  <option value="random">随机抽样</option>
+                  <option value="stratified">分层抽样（按科目）</option>
+                  <option value="large">大额抽样（≥阈值）</option>
+                </select>
+              </div>
+              <div class="filter-group">
+                <label id="sampSizeLabel">样本数量</label>
+                <input id="sampSize" type="number" min="1" max="500" value="20" />
+              </div>
+              <div class="filter-group" id="sampThresholdGroup" style="display:none">
+                <label>金额阈值</label>
+                <input id="sampThreshold" type="number" min="0" step="100" value="10000" />
+              </div>
+              <div class="filter-group">
+                <label>筛选任务（可选）</label>
+                <select id="sampTaskSelect">
+                  <option value="">全部任务</option>
+                </select>
+              </div>
+              <div class="filter-group">
+                <label>仅异常记录</label>
+                <select id="sampException">
+                  <option value="">全部</option>
+                  <option value="true">仅异常</option>
+                  <option value="false">仅正常</option>
+                </select>
+              </div>
+              <div class="sampling-actions">
+                <button class="btn btn-primary" id="sampleBtn">🎯 开始抽样</button>
+                <button class="btn btn-ghost" id="exportSampleBtn">📥 导出抽样结果</button>
+              </div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-head">
+              <h2>📋 抽样结果</h2>
+              <span id="sampleCount" class="task-meta"></span>
+            </div>
+            <div class="scroll-area">
+              <div id="sampleResults" class="scroll-y">
+                <div class="detail-empty">点击「开始抽样」获取结果</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== AI 助手 ==================== -->
+      <section id="ai" class="view">
+        <div class="grid two">
+          <!-- 左侧：AI 对话 -->
+          <section class="panel ai-chat-panel">
+            <div class="panel-head">
+              <h2>🤖 AI 审计助手</h2>
+              <span class="ai-model-badge" id="aiModelBadge">本地模式</span>
+            </div>
+            <div class="ai-chat-area scroll-y" id="aiChatMessages">
+              <div class="ai-msg ai-msg-system">
+                <div class="ai-msg-avatar">🤖</div>
+                <div class="ai-msg-bubble">
+                  <p>您好！我是 AI 审计助手，可以帮您：</p>
+                  <ul>
+                    <li>🔍 <b>语义搜索</b> — 用自然语言查找审计记录</li>
+                    <li>💬 <b>智能问答</b> — 基于数据进行审计分析</li>
+                    <li>⚠️ <b>异常检测</b> — 自动发现审计线索</li>
+                    <li>📊 <b>生成建议</b> — 提供专业审计建议</li>
+                  </ul>
+                  <p class="ai-hint">🤖 智谱 GLM-4.5-Air · 已接入 AI 深度分析能力</p>
+                </div>
+              </div>
+            </div>
+            <div class="ai-chat-input">
+              <textarea id="aiInput" placeholder="输入您的问题，例如：'查找所有大额异常交易' 或 '本月应收账款有哪些风险点'" rows="2"></textarea>
+              <div class="ai-chat-actions">
+                <select id="aiMode" class="ai-mode-select">
+                  <option value="search">🔍 语义搜索</option>
+                  <option value="qa">💬 智能问答</option>
+                  <option value="suggestions">⚠️ 审计建议</option>
+                </select>
+                <button class="btn btn-primary" id="aiSendBtn">发送</button>
+              </div>
+            </div>
+          </section>
+          <!-- 右侧：搜索/建议结果 + 索引管理 -->
+          <section class="panel">
+            <div class="panel-head">
+              <h2 id="aiResultTitle">📋 结果面板</h2>
+              <div class="ai-result-actions">
+                <button class="btn btn-ghost btn-sm" id="aiRefreshIndexBtn">🔄 刷新索引</button>
+                <button class="btn btn-ghost btn-sm" id="aiReindexBtn" title="全量重建索引">🔧 重建索引</button>
+              </div>
+            </div>
+            <div class="scroll-area">
+              <div id="aiResults" class="scroll-y">
+                <div class="detail-empty">输入问题或点击「审计建议」开始</div>
+              </div>
+            </div>
+            <!-- 索引状态 -->
+            <div class="ai-index-status" id="aiIndexStatus">
+              <span>📊 索引状态: <span id="aiIndexCount">检测中...</span></span>
+              <span>📐 维度: <span id="aiIndexDim">--</span></span>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <!-- ==================== Workflows 自动审计 ==================== -->
+      <section id="workflows" class="view">
+        <!-- 顶部工作流选择器 -->
+        <div class="wf-hero">
+          <div class="wf-hero-left">
+            <h2>⚡ AI 自动审计工作流</h2>
+            <p>选择一个任务和工作流，AI 将自动执行多步骤审计分析并生成专业报告</p>
+          </div>
+          <div class="wf-hero-right">
+            <div class="wf-quick-stats" id="wfQuickStats">
+              <span>📊 已处理 <b id="wfCompletedCount">--</b> 个任务</span>
+              <span>🔍 <b id="wfTotalFindings">--</b> 项审计发现</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid two">
+          <!-- 左侧：配置面板 -->
+          <section class="panel wf-config-panel">
+            <div class="panel-head">
+              <h3>⚙️ 审计配置</h3>
+            </div>
+
+            <!-- 任务选择 -->
+            <div class="wf-section">
+              <label class="wf-label">📋 选择任务</label>
+              <select id="wfTaskSelect" class="wf-select">
+                <option value="">— 请选择已处理的任务 —</option>
+              </select>
+              <div class="wf-task-preview" id="wfTaskPreview" style="display:none">
+                <div class="wf-task-preview-card">
+                  <span class="wf-task-preview-icon">📄</span>
+                  <div class="wf-task-preview-info">
+                    <strong id="wfPreviewName">--</strong>
+                    <span id="wfPreviewMeta">--</span>
+                  </div>
+                  <button class="btn btn-ghost btn-sm wf-jump-btn" id="wfJumpToTask" title="查看任务详情">查看 →</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- 工作流选择 -->
+            <div class="wf-section">
+              <label class="wf-label">🔀 审计工作流</label>
+              <div class="wf-type-cards" id="wfTypeCards">
+                <label class="wf-type-card active">
+                  <input type="radio" name="wfType" value="quick_scan" checked hidden />
+                  <span class="wf-type-icon">🔍</span>
+                  <div class="wf-type-body">
+                    <strong>快速扫描</strong>
+                    <small>5分钟内完成：大额→重复→平衡→异常</small>
+                  </div>
+                </label>
+                <label class="wf-type-card">
+                  <input type="radio" name="wfType" value="full_audit" hidden />
+                  <span class="wf-type-icon">📋</span>
+                  <div class="wf-type-body">
+                    <strong>全面审计</strong>
+                    <small>质量→12异常→科目→风险→AI建议</small>
+                  </div>
+                </label>
+                <label class="wf-type-card">
+                  <input type="radio" name="wfType" value="ar_audit" hidden />
+                  <span class="wf-type-icon">💰</span>
+                  <div class="wf-type-body">
+                    <strong>应收账款专项</strong>
+                    <small>余额→账龄→收入匹配→AI风险</small>
+                  </div>
+                </label>
+                <label class="wf-type-card">
+                  <input type="radio" name="wfType" value="ap_audit" hidden />
+                  <span class="wf-type-icon">💳</span>
+                  <div class="wf-type-body">
+                    <strong>应付账款专项</strong>
+                    <small>余额→供应商→异常→AI风险</small>
+                  </div>
+                </label>
+                <label class="wf-type-card">
+                  <input type="radio" name="wfType" value="revenue_audit" hidden />
+                  <span class="wf-type-icon">📈</span>
+                  <div class="wf-type-body">
+                    <strong>收入确认专项</strong>
+                    <small>汇总→期间→科目→AI风险</small>
+                  </div>
+                </label>
+                <label class="wf-type-card">
+                  <input type="radio" name="wfType" value="expense_audit" hidden />
+                  <span class="wf-type-icon">🧾</span>
+                  <div class="wf-type-body">
+                    <strong>费用报销专项</strong>
+                    <small>汇总→合理→异常→AI风险</small>
+                  </div>
+                </label>
+                <label class="wf-type-card">
+                  <input type="radio" name="wfType" value="four_way" hidden />
+                  <span class="wf-type-icon">🔗</span>
+                  <div class="wf-type-body">
+                    <strong>四联动核验</strong>
+                    <small>发票→合同→付款→入账全链路</small>
+                  </div>
+                </label>
+                <label class="wf-type-card">
+                  <input type="radio" name="wfType" value="multi_perspective" hidden />
+                  <span class="wf-type-icon">👁️</span>
+                  <div class="wf-type-body">
+                    <strong>多视角审计</strong>
+                    <small>风险+合规+业务三维并行</small>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <!-- 操作按钮 -->
+            <div class="workflow-actions">
+              <button class="btn btn-primary" id="runWorkflowBtn">
+                <span class="btn-icon">▶</span> 执行审计
+              </button>
+              <button class="btn btn-secondary" id="genWorkpaperBtn">
+                <span class="btn-icon">📝</span> 生成底稿
+              </button>
+            </div>
+            <div id="workflowHint" class="hint"></div>
+          </section>
+
+          <!-- 右侧：结果面板 -->
+          <section class="panel wf-result-panel">
+            <div class="panel-head">
+              <h3 id="wfResultTitle">📊 审计结果</h3>
+              <div class="wf-result-toolbar">
+                <button class="btn btn-ghost btn-sm" id="wfCollapseAll" style="display:none">📑 折叠全部</button>
+                <button class="btn btn-ghost btn-sm" id="exportWfResultBtn" style="display:none">📥 导出底稿</button>
+              </div>
+            </div>
+            <!-- 进度条 -->
+            <div class="wf-progress-bar" id="wfProgressBar" style="display:none">
+              <div class="wf-progress-fill" id="wfProgressFill"></div>
+              <span class="wf-progress-text" id="wfProgressText">初始化...</span>
+            </div>
+            <div class="scroll-area">
+              <div id="workflowResults" class="scroll-y">
+                <div class="wf-empty-state">
+                  <div class="wf-empty-icon">🚀</div>
+                  <strong>开始自动审计</strong>
+                  <p>在左侧选择任务和工作流<br/>点击「执行审计」即可自动分析</p>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </section>
+
       <section id="exports" class="view">
         <div class="grid two">
           <section class="panel">
@@ -295,6 +605,12 @@
                     <span class="format-icon">📋</span>
                     <span class="format-name">校验报告</span>
                     <span class="format-desc">含勾稽规则检查结果</span>
+                  </label>
+                  <label class="format-option" data-format="docx">
+                    <input type="radio" name="exportFormat" value="docx" hidden />
+                    <span class="format-icon">📝</span>
+                    <span class="format-name">Word 报告</span>
+                    <span class="format-desc">包含摘要、校验、明细的完整审计报告</span>
                   </label>
                 </div>
               </div>

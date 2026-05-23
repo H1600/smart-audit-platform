@@ -101,3 +101,28 @@ class AccountMapping(Base):
     standard_name: Mapped[str] = mapped_column(String(160), nullable=False)
     rule: Mapped[str] = mapped_column(String(300), default="精确匹配")
     enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+
+class AiAuditLog(Base):
+    """AI 操作审计日志"""
+    __tablename__ = "ai_audit_logs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    action: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
+    api_key_hash: Mapped[str] = mapped_column(String(64), default="")
+    success: Mapped[bool] = mapped_column(Boolean, default=True)
+    duration_ms: Mapped[float] = mapped_column(Float, default=0.0)
+    details: Mapped[str] = mapped_column(Text, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+
+
+class AiFeedback(Base):
+    """AI 人工反馈（用于模型微调）"""
+    __tablename__ = "ai_feedback"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    query_id: Mapped[str] = mapped_column(String(120), nullable=False, index=True)
+    rating: Mapped[int] = mapped_column(Integer, default=0)
+    notes: Mapped[str] = mapped_column(Text, default="")
+    correct_answer: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)

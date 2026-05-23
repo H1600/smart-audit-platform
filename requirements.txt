@@ -9,4 +9,11 @@ PyPDF2==3.0.1
 Pillow==10.4.0
 pytest==8.3.4
 httpx==0.28.1
+python-docx==1.1.2
+jieba==0.42.1
+scikit-learn==1.6.1
+# ── AI 模块依赖 ──────────────────────────────
+sentence-transformers>=3.0.0
+faiss-cpu>=1.8.0
+
 

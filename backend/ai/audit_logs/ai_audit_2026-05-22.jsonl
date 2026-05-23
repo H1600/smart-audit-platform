@@ -1,0 +1,63 @@
+{"timestamp": "2026-05-22T08:09:31.889642", "action": "ai_health", "api_key_hash": "df76ff796f70d2c9", "success": true, "duration_ms": 0, "details": {}}
+{"timestamp": "2026-05-22T08:09:53.668912", "action": "suggestions", "api_key_hash": "df76ff796f70d2c9", "success": true, "duration_ms": 0, "details": {"task_id": null}}
+{"timestamp": "2026-05-22T08:10:17.825901", "action": "semantic_search", "api_key_hash": "df76ff796f70d2c9", "success": true, "duration_ms": 0, "details": {"query": "大额交易异常", "top_k": 5}}
+{"timestamp": "2026-05-22T08:10:30.070180", "action": "trigger_index", "api_key_hash": "df76ff796f70d2c9", "success": true, "duration_ms": 0, "details": {"task_id": null, "force": false}}
+{"timestamp": "2026-05-22T08:10:58.160021", "action": "semantic_search", "api_key_hash": "df76ff796f70d2c9", "success": true, "duration_ms": 0, "details": {"query": "应收账款冲减", "top_k": 3}}
+{"timestamp": "2026-05-22T08:11:13.152128", "action": "ai_qa", "api_key_hash": "df76ff796f70d2c9", "success": true, "duration_ms": 0, "details": {"question": "应收账款有哪些风险点"}}
+{"timestamp": "2026-05-22T08:12:15.700362", "action": "auth_failed", "api_key_hash": "e3b0c44298fc1c14", "success": false, "duration_ms": 0, "details": {"reason": "invalid_key"}}
+{"timestamp": "2026-05-22T08:12:15.701430", "action": "auth_failed", "api_key_hash": "e3b0c44298fc1c14", "success": false, "duration_ms": 0, "details": {"reason": "invalid_key"}}
+{"timestamp": "2026-05-22T08:12:15.704674", "action": "auth_failed", "api_key_hash": "e3b0c44298fc1c14", "success": false, "duration_ms": 0, "details": {"reason": "invalid_key"}}
+{"timestamp": "2026-05-22T08:12:15.705894", "action": "auth_failed", "api_key_hash": "e3b0c44298fc1c14", "success": false, "duration_ms": 0, "details": {"reason": "invalid_key"}}
+{"timestamp": "2026-05-22T08:12:48.055202", "action": "auth_failed", "api_key_hash": "e3b0c44298fc1c14", "success": false, "duration_ms": 0, "details": {"reason": "invalid_key"}}
+{"timestamp": "2026-05-22T08:12:48.057201", "action": "auth_failed", "api_key_hash": "e3b0c44298fc1c14", "success": false, "duration_ms": 0, "details": {"reason": "invalid_key"}}
+{"timestamp": "2026-05-22T08:12:48.059204", "action": "auth_failed", "api_key_hash": "e3b0c44298fc1c14", "success": false, "duration_ms": 0, "details": {"reason": "invalid_key"}}
+{"timestamp": "2026-05-22T08:12:48.061202", "action": "auth_failed", "api_key_hash": "e3b0c44298fc1c14", "success": false, "duration_ms": 0, "details": {"reason": "invalid_key"}}
+{"timestamp": "2026-05-22T08:15:11.055569", "action": "auth_failed", "api_key_hash": "e3b0c44298fc1c14", "success": false, "duration_ms": 0, "details": {"reason": "invalid_key"}}
+{"timestamp": "2026-05-22T08:15:11.058670", "action": "auth_failed", "api_key_hash": "e3b0c44298fc1c14", "success": false, "duration_ms": 0, "details": {"reason": "invalid_key"}}
+{"timestamp": "2026-05-22T08:15:45.834426", "action": "auth_failed", "api_key_hash": "e3b0c44298fc1c14", "success": false, "duration_ms": 0, "details": {"reason": "invalid_key"}}
+{"timestamp": "2026-05-22T08:15:45.836679", "action": "auth_failed", "api_key_hash": "e3b0c44298fc1c14", "success": false, "duration_ms": 0, "details": {"reason": "invalid_key"}}
+{"timestamp": "2026-05-22T08:22:28.758643", "action": "ai_qa", "api_key_hash": "b9ca8f66f3e82f31", "success": true, "duration_ms": 0, "details": {"question": "当前应收账款存在哪些风险点？请简要分析"}}
+{"timestamp": "2026-05-22T08:23:07.505473", "action": "ai_qa", "api_key_hash": "b9ca8f66f3e82f31", "success": true, "duration_ms": 0, "details": {"question": "????????????????"}}
+{"timestamp": "2026-05-22T08:29:47.165825", "action": "ai_qa", "api_key_hash": "b9ca8f66f3e82f31", "success": true, "duration_ms": 0, "details": {"question": "????????"}}
+{"timestamp": "2026-05-22T08:30:52.602077", "action": "ai_qa", "api_key_hash": "b9ca8f66f3e82f31", "success": true, "duration_ms": 0, "details": {"question": "应收账款风险分析"}}
+{"timestamp": "2026-05-22T08:31:12.619421", "action": "ai_qa", "api_key_hash": "b9ca8f66f3e82f31", "success": true, "duration_ms": 0, "details": {"question": "应收账款有哪些风险？请简要分析"}}
+{"timestamp": "2026-05-22T08:37:38.231134", "action": "semantic_search", "api_key_hash": "b9ca8f66f3e82f31", "success": true, "duration_ms": 0, "details": {"query": "账单风险评估", "top_k": 10}}
+{"timestamp": "2026-05-22T08:38:05.626278", "action": "semantic_search", "api_key_hash": "b9ca8f66f3e82f31", "success": true, "duration_ms": 0, "details": {"query": "合理的账单", "top_k": 10}}
+{"timestamp": "2026-05-22T08:38:13.801620", "action": "trigger_index", "api_key_hash": "b9ca8f66f3e82f31", "success": true, "duration_ms": 0, "details": {"task_id": null, "force": false}}
+{"timestamp": "2026-05-22T08:38:24.519345", "action": "semantic_search", "api_key_hash": "b9ca8f66f3e82f31", "success": true, "duration_ms": 0, "details": {"query": "完整的账单", "top_k": 10}}
+{"timestamp": "2026-05-22T08:38:41.231317", "action": "trigger_index", "api_key_hash": "b9ca8f66f3e82f31", "success": true, "duration_ms": 0, "details": {"task_id": null, "force": false}}
+{"timestamp": "2026-05-22T08:39:05.193587", "action": "semantic_search", "api_key_hash": "b9ca8f66f3e82f31", "success": true, "duration_ms": 0, "details": {"query": "查找所有异常账单", "top_k": 10}}
+{"timestamp": "2026-05-22T08:39:29.230706", "action": "suggestions", "api_key_hash": "b9ca8f66f3e82f31", "success": true, "duration_ms": 0, "details": {"task_id": null}}
+{"timestamp": "2026-05-22T08:40:40.930475", "action": "ai_qa", "api_key_hash": "b9ca8f66f3e82f31", "success": true, "duration_ms": 0, "details": {"question": "给些审计建议"}}
+{"timestamp": "2026-05-22T08:42:58.068119", "action": "ai_qa", "api_key_hash": "b9ca8f66f3e82f31", "success": true, "duration_ms": 0, "details": {"question": "查找所有正常的结果"}}
+{"timestamp": "2026-05-22T09:11:44.922197", "action": "workflow_run", "api_key_hash": "b9ca8f66f3e82f31", "success": true, "duration_ms": 0, "details": {"workflow": "quick_scan", "task_id": 32}}
+{"timestamp": "2026-05-22T09:12:09.470178", "action": "tool_call", "api_key_hash": "b9ca8f66f3e82f31", "success": true, "duration_ms": 0, "details": {"tool": "get_task_list", "args": "{}"}}
+{"timestamp": "2026-05-22T09:12:09.487426", "action": "tool_call", "api_key_hash": "b9ca8f66f3e82f31", "success": true, "duration_ms": 0, "details": {"tool": "get_task_list", "args": "{}"}}
+{"timestamp": "2026-05-22T09:12:26.137280", "action": "workflow_run", "api_key_hash": "b9ca8f66f3e82f31", "success": true, "duration_ms": 0, "details": {"workflow": "quick_scan", "task_id": 32}}
+{"timestamp": "2026-05-22T13:58:15.979809", "action": "tool_call", "api_key_hash": "b9ca8f66f3e82f31", "success": true, "duration_ms": 0, "details": {"tool": "get_task_list", "args": "{}"}}
+{"timestamp": "2026-05-22T13:58:15.995344", "action": "tool_call", "api_key_hash": "b9ca8f66f3e82f31", "success": true, "duration_ms": 0, "details": {"tool": "get_task_list", "args": "{}"}}
+{"timestamp": "2026-05-22T13:58:29.963252", "action": "workflow_run", "api_key_hash": "b9ca8f66f3e82f31", "success": true, "duration_ms": 0, "details": {"workflow": "quick_scan", "task_id": 32}}
+{"timestamp": "2026-05-22T13:59:17.721537", "action": "workflow_run", "api_key_hash": "b9ca8f66f3e82f31", "success": true, "duration_ms": 0, "details": {"workflow": "quick_scan", "task_id": 28}}
+{"timestamp": "2026-05-22T14:02:53.866120", "action": "tool_call", "api_key_hash": "b9ca8f66f3e82f31", "success": true, "duration_ms": 0, "details": {"tool": "get_task_list", "args": "{}"}}
+{"timestamp": "2026-05-22T14:02:53.883889", "action": "tool_call", "api_key_hash": "b9ca8f66f3e82f31", "success": true, "duration_ms": 0, "details": {"tool": "get_task_list", "args": "{}"}}
+{"timestamp": "2026-05-22T14:06:23.178513", "action": "workpaper_generate", "api_key_hash": "b9ca8f66f3e82f31", "success": true, "duration_ms": 0, "details": {"task_id": 21, "format": "standard"}}
+{"timestamp": "2026-05-22T14:12:50.279312", "action": "tool_call", "api_key_hash": "b9ca8f66f3e82f31", "success": true, "duration_ms": 0, "details": {"tool": "get_task_list", "args": "{}"}}
+{"timestamp": "2026-05-22T14:12:50.292309", "action": "tool_call", "api_key_hash": "b9ca8f66f3e82f31", "success": true, "duration_ms": 0, "details": {"tool": "get_task_list", "args": "{}"}}
+{"timestamp": "2026-05-22T14:13:03.438283", "action": "workflow_run", "api_key_hash": "b9ca8f66f3e82f31", "success": true, "duration_ms": 0, "details": {"workflow": "full_audit", "task_id": 21}}
+{"timestamp": "2026-05-22T14:13:07.111695", "action": "workflow_run", "api_key_hash": "b9ca8f66f3e82f31", "success": true, "duration_ms": 0, "details": {"workflow": "full_audit", "task_id": 21}}
+{"timestamp": "2026-05-22T14:13:23.544592", "action": "tool_call", "api_key_hash": "b9ca8f66f3e82f31", "success": true, "duration_ms": 0, "details": {"tool": "get_task_list", "args": "{}"}}
+{"timestamp": "2026-05-22T14:13:23.556691", "action": "tool_call", "api_key_hash": "b9ca8f66f3e82f31", "success": true, "duration_ms": 0, "details": {"tool": "get_task_list", "args": "{}"}}
+{"timestamp": "2026-05-22T14:13:34.046953", "action": "tool_call", "api_key_hash": "b9ca8f66f3e82f31", "success": true, "duration_ms": 0, "details": {"tool": "get_task_list", "args": "{}"}}
+{"timestamp": "2026-05-22T14:13:34.059955", "action": "tool_call", "api_key_hash": "b9ca8f66f3e82f31", "success": true, "duration_ms": 0, "details": {"tool": "get_task_list", "args": "{}"}}
+{"timestamp": "2026-05-22T14:13:39.916975", "action": "workflow_run", "api_key_hash": "b9ca8f66f3e82f31", "success": true, "duration_ms": 0, "details": {"workflow": "ar_audit", "task_id": 21}}
+{"timestamp": "2026-05-22T14:15:35.202166", "action": "workflow_run", "api_key_hash": "b9ca8f66f3e82f31", "success": true, "duration_ms": 0, "details": {"workflow": "full_audit", "task_id": 21}}
+{"timestamp": "2026-05-22T14:15:40.138197", "action": "workflow_run", "api_key_hash": "b9ca8f66f3e82f31", "success": true, "duration_ms": 0, "details": {"workflow": "ap_audit", "task_id": 21}}
+{"timestamp": "2026-05-22T14:19:32.639372", "action": "workflow_run", "api_key_hash": "b9ca8f66f3e82f31", "success": true, "duration_ms": 0, "details": {"workflow": "full_audit", "task_id": 21}}
+{"timestamp": "2026-05-22T14:29:57.203414", "action": "tool_call", "api_key_hash": "b9ca8f66f3e82f31", "success": true, "duration_ms": 0, "details": {"tool": "get_task_list", "args": "{}"}}
+{"timestamp": "2026-05-22T14:35:54.675228", "action": "tool_call", "api_key_hash": "b9ca8f66f3e82f31", "success": true, "duration_ms": 0, "details": {"tool": "get_task_list", "args": "{}"}}
+{"timestamp": "2026-05-22T14:35:54.689128", "action": "tool_call", "api_key_hash": "b9ca8f66f3e82f31", "success": true, "duration_ms": 0, "details": {"tool": "get_task_list", "args": "{}"}}
+{"timestamp": "2026-05-22T14:36:06.783345", "action": "workflow_run", "api_key_hash": "b9ca8f66f3e82f31", "success": true, "duration_ms": 0, "details": {"workflow": "full_audit", "task_id": 23}}
+{"timestamp": "2026-05-22T14:37:22.973915", "action": "workflow_run", "api_key_hash": "b9ca8f66f3e82f31", "success": true, "duration_ms": 0, "details": {"workflow": "multi_perspective", "task_id": 23}}
+{"timestamp": "2026-05-22T14:50:06.693597", "action": "tool_call", "api_key_hash": "b9ca8f66f3e82f31", "success": true, "duration_ms": 0, "details": {"tool": "get_task_list", "args": "{}"}}
+{"timestamp": "2026-05-22T14:50:06.706594", "action": "tool_call", "api_key_hash": "b9ca8f66f3e82f31", "success": true, "duration_ms": 0, "details": {"tool": "get_task_list", "args": "{}"}}
+{"timestamp": "2026-05-22T15:24:35.984077", "action": "workflow_run", "api_key_hash": "b9ca8f66f3e82f31", "success": true, "duration_ms": 0, "details": {"workflow": "multi_perspective", "task_id": 34}}

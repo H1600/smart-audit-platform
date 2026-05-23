@@ -725,6 +725,14 @@ def _line_from_items(items: list[dict[str, Any]]) -> str:
 
 
 def normalize_records(rows: list[dict[str, Any]], task_id: int, file_id: int) -> list[LedgerRecord]:
+    # Try loading ML classifier for better account prediction
+    try:
+        from .account_classifier import load_classifier, _tokenize, _keyword_fallback
+
+        clf_pair = load_classifier()
+    except Exception:
+        clf_pair = None
+
     seen: set[tuple[Any, ...]] = set()
     records: list[LedgerRecord] = []
     for row in rows:
@@ -733,9 +741,39 @@ def normalize_records(rows: list[dict[str, Any]], task_id: int, file_id: int) ->
         record_date = _parse_date(_pick(compact, ["日期", "记账日期", "业务日期", "date"]) or summary)
         voucher_no = _pick(compact, ["凭证号", "凭证编号", "voucher", "voucher_no"]) or _guess_voucher(summary)
         account_code = _pick(compact, ["科目编码", "科目代码", "account_code"]) or ""
-        account_name = _pick(compact, ["科目名称", "会计科目", "科目", "account_name"]) or _guess_account(summary)[1]
+        account_name = _pick(compact, ["科目名称", "会计科目", "科目", "account_name"]) or ""
+
+        # ML prediction fallback when account info is missing
+        if (not account_code or not account_name or account_name == "未映射") and summary and summary != "待复核":
+            try:
+                if clf_pair is not None:
+                    vect, clf = clf_pair
+                    tokens_list = [_tokenize(summary)]
+                    X = vect.transform(tokens_list)
+                    probs = clf.predict_proba(X)[0]
+                    best_idx = int(probs.argmax())
+                    pred_name = str(clf.classes_[best_idx])
+                    pred_conf = round(float(probs[best_idx]), 4)
+                    if pred_conf >= 0.3:
+                        if not account_name or account_name == "未映射":
+                            account_name = pred_name
+            except Exception:
+                pass
+
+        # Keyword fallback
         if not account_code:
-            account_code = _guess_account(account_name or summary)[0]
+            kw_code, kw_name = _keyword_fallback(account_name or summary)
+            account_code = account_code or kw_code
+            if not account_name or account_name == "未映射":
+                account_name = kw_name
+
+        # Also try old _guess_account for backward compat
+        if not account_code:
+            guessed_code, guessed_name = _guess_account(account_name or summary)
+            account_code = account_code or guessed_code
+            if not account_name or account_name == "未映射":
+                account_name = guessed_name
+
         debit = _parse_amount(_pick(compact, ["借方", "借方金额", "debit"]))
         credit = _parse_amount(_pick(compact, ["贷方", "贷方金额", "credit"]))
         balance = _parse_amount(_pick(compact, ["余额", "balance"]))
@@ -877,6 +915,8 @@ def export_task(db: Session, task_id: int, fmt: str) -> Path:
         reports = list(db.scalars(select(AuditReport).where(AuditReport.task_id == task_id)))
         path.write_text(json.dumps([report_to_dict(r) for r in reports], ensure_ascii=False, indent=2), encoding="utf-8")
         return path
+    if fmt == "docx":
+        return _export_docx(db, task_id, records)
 
     path = EXPORT_DIR / f"task_{task_id}_records.xlsx"
     try:
@@ -984,3 +1024,153 @@ def _guess_account(text: str) -> tuple[str, str]:
         if hint in (text or ""):
             return account
     return "", ""
+
+
+def _export_docx(db: Session, task_id: int, records: list[LedgerRecord]) -> Path:
+    """Generate a Word audit report with summary, exceptions, and record details."""
+    try:
+        from docx import Document
+        from docx.shared import Inches, Pt, Cm, RGBColor
+        from docx.enum.text import WD_ALIGN_PARAGRAPH
+        from docx.enum.table import WD_TABLE_ALIGNMENT
+        from docx.oxml.ns import qn
+    except ImportError:
+        raise RuntimeError("python-docx 未安装，请执行 pip install python-docx")
+
+    reports = list(db.scalars(select(AuditReport).where(AuditReport.task_id == task_id)))
+    exceptions = [r for r in records if r.is_exception]
+    debit_total = round(sum(r.debit for r in records), 2)
+    credit_total = round(sum(r.credit for r in records), 2)
+
+    doc = Document()
+
+    # ── Style setup ──
+    style = doc.styles["Normal"]
+    style.font.name = "微软雅黑"
+    style.font.size = Pt(10.5)
+    style.element.rPr.rFonts.set(qn("w:eastAsia"), "微软雅黑")
+
+    # ── Title ──
+    title = doc.add_heading("审计数据处理报告", level=0)
+    title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+
+    # ── Meta ──
+    meta = doc.add_paragraph()
+    meta.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    meta_run = meta.add_run(f"任务编号: {task_id}  |  生成时间: {datetime.utcnow().strftime('%Y-%m-%d %H:%M')}  |  记录数: {len(records)}")
+    meta_run.font.size = Pt(9)
+    meta_run.font.color.rgb = RGBColor(100, 100, 100)
+
+    doc.add_paragraph("")  # spacer
+
+    # ── Summary ──
+    doc.add_heading("一、汇总信息", level=1)
+    summary_data = [
+        ("总记录数", str(len(records))),
+        ("借方合计", f"¥{debit_total:,.2f}"),
+        ("贷方合计", f"¥{credit_total:,.2f}"),
+        ("借贷差额", f"¥{abs(debit_total - credit_total):,.2f}"),
+        ("借贷平衡", "✅ 是" if debit_total == credit_total else "❌ 否"),
+        ("异常记录数", str(len(exceptions))),
+        ("正常记录数", str(len(records) - len(exceptions))),
+    ]
+    table = doc.add_table(rows=len(summary_data), cols=2, style="Light Grid Accent 1")
+    table.alignment = WD_TABLE_ALIGNMENT.CENTER
+    for i, (label, value) in enumerate(summary_data):
+        table.rows[i].cells[0].text = label
+        table.rows[i].cells[1].text = value
+        for cell in table.rows[i].cells:
+            for p in cell.paragraphs:
+                for run in p.runs:
+                    run.font.size = Pt(10)
+
+    doc.add_paragraph("")
+
+    # ── Validation Reports ──
+    if reports:
+        doc.add_heading("二、勾稽校验结果", level=1)
+        for report in reports:
+            status_text = "✅ 通过" if report.passed else "❌ 未通过"
+            doc.add_paragraph(f"{status_text} — {report.rule_name}", style="List Bullet")
+            if report.details:
+                try:
+                    detail = json.loads(report.details)
+                    if isinstance(detail, dict):
+                        for k, v in detail.items():
+                            doc.add_paragraph(f"  {k}: {v}", style="List Bullet 2")
+                except Exception:
+                    doc.add_paragraph(f"  {report.details}")
+
+    doc.add_paragraph("")
+
+    # ── Exception Records ──
+    if exceptions:
+        doc.add_heading("三、异常记录明细", level=1)
+        exc_table = doc.add_table(rows=1, cols=6, style="Light Grid Accent 1")
+        exc_table.alignment = WD_TABLE_ALIGNMENT.CENTER
+        hdr = exc_table.rows[0].cells
+        headers = ["序号", "日期", "凭证号", "科目名称", "金额(借/贷)", "异常原因"]
+        for i, text in enumerate(headers):
+            hdr[i].text = text
+            for p in hdr[i].paragraphs:
+                for run in p.runs:
+                    run.bold = True
+                    run.font.size = Pt(9)
+
+        for idx, r in enumerate(exceptions[:100], 1):
+            row = exc_table.add_row()
+            cells = row.cells
+            cells[0].text = str(idx)
+            cells[1].text = r.record_date.isoformat() if r.record_date else ""
+            cells[2].text = r.voucher_no
+            cells[3].text = r.account_name
+            cells[4].text = f"{r.debit:.2f} / {r.credit:.2f}"
+            cells[5].text = r.exception_reason
+            for cell in cells:
+                for p in cell.paragraphs:
+                    for run in p.runs:
+                        run.font.size = Pt(9)
+
+    doc.add_paragraph("")
+
+    # ── Full Record Table ──
+    doc.add_heading("四、全部记录明细", level=1)
+    rec_table = doc.add_table(rows=1, cols=8, style="Light Grid Accent 1")
+    rec_table.alignment = WD_TABLE_ALIGNMENT.CENTER
+    hdr2 = rec_table.rows[0].cells
+    rec_headers = ["序号", "日期", "凭证号", "科目编码", "科目名称", "摘要", "借方", "贷方"]
+    for i, text in enumerate(rec_headers):
+        hdr2[i].text = text
+        for p in hdr2[i].paragraphs:
+            for run in p.runs:
+                run.bold = True
+                run.font.size = Pt(8)
+
+    for idx, r in enumerate(records[:500], 1):
+        row = rec_table.add_row()
+        cells = row.cells
+        cells[0].text = str(idx)
+        cells[1].text = r.record_date.isoformat() if r.record_date else ""
+        cells[2].text = r.voucher_no
+        cells[3].text = r.account_code
+        cells[4].text = r.account_name
+        cells[5].text = (r.summary or "")[:60]
+        cells[6].text = f"{r.debit:.2f}"
+        cells[7].text = f"{r.credit:.2f}"
+        for cell in cells:
+            for p in cell.paragraphs:
+                for run in p.runs:
+                    run.font.size = Pt(8)
+
+    # ── Footer ──
+    doc.add_paragraph("")
+    footer = doc.add_paragraph()
+    footer.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+    footer_run = footer.add_run("— 由智能财务审计数据处理平台自动生成 —")
+    footer_run.font.size = Pt(8)
+    footer_run.font.color.rgb = RGBColor(150, 150, 150)
+    footer_run.italic = True
+
+    path = EXPORT_DIR / f"task_{task_id}_audit_report.docx"
+    doc.save(str(path))
+    return path
