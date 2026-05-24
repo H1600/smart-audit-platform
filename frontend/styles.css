@@ -600,6 +600,85 @@ nav { flex: 1; display: flex; flex-direction: column; gap: 4px; }
   font-family: "JetBrains Mono", "Consolas", monospace;
 }
 
+.drawer-extract-panel {
+  display: grid;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.drawer-extract-head {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.ocr-result-list {
+  display: grid;
+  gap: 10px;
+}
+
+.ocr-result-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-card-solid);
+  overflow: hidden;
+}
+
+.ocr-result-card summary {
+  list-style: none;
+}
+
+.ocr-result-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  background: linear-gradient(135deg, rgba(15,110,138,0.06), rgba(5,150,105,0.04));
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.ocr-result-card[open] .ocr-result-summary {
+  border-bottom: 1px solid var(--border);
+}
+
+.ocr-result-body {
+  display: grid;
+  gap: 10px;
+  padding: 12px 14px 14px;
+}
+
+.ocr-result-block {
+  display: grid;
+  gap: 6px;
+}
+
+.ocr-result-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.ocr-result-text {
+  margin: 0;
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  background: #08111c;
+  color: #dbeafe;
+  font-size: 12px;
+  line-height: 1.8;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: "JetBrains Mono", "Consolas", monospace;
+  max-height: 240px;
+  overflow: auto;
+}
+
 /* ===== Table improvements ===== */
 .table-wrap table tbody tr.empty-row {
   cursor: default;

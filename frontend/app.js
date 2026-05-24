@@ -28,6 +28,39 @@ function money(v) {
   return Number(v || 0).toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function safeJsonParse(value, fallback = null) {
+  if (value === null || value === undefined || value === "") return fallback;
+  if (typeof value === "object") return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return fallback;
+  }
+}
+
+function formatJsonBlock(value) {
+  const parsed = safeJsonParse(value, value);
+  try {
+    return escapeHtml(JSON.stringify(parsed, null, 2));
+  } catch {
+    return escapeHtml(String(value ?? ""));
+  }
+}
+
+function formatTextBlock(value, emptyText = "暂无内容") {
+  const text = String(value ?? "").trim();
+  return text ? escapeHtml(text).replace(/\n/g, "<br/>") : `<span class="null-placeholder">${emptyText}</span>`;
+}
+
 /* ===== API ===== */
 const AI_API_KEY = "audit-platform-key";
 
@@ -126,6 +159,7 @@ async function selectTask(id) {
   state.selectedTaskId = id;
   const task = await api(`/api/tasks/${id}`);
   const report = await api(`/api/reports/${id}`).catch(() => null);
+  const ocrResults = await api(`/api/tasks/${id}/ocr-results`).catch(() => null);
 
   $("#rerunTaskBtn").disabled = task.status === "running";
   // Sync export task select
@@ -147,6 +181,30 @@ async function selectTask(id) {
     )
     .join("") || "暂无报告";
 
+  const ocrHtml = (ocrResults?.items || []).length
+    ? (ocrResults.items || [])
+        .map(
+          (item) => `
+          <details class="ocr-result-card" open>
+            <summary class="ocr-result-summary">
+              <span>📄 第 ${item.page_no || 1} 页</span>
+              <span>置信度 ${Number(item.confidence || 0).toFixed(2)}</span>
+            </summary>
+            <div class="ocr-result-body">
+              <div class="ocr-result-block">
+                <div class="ocr-result-label">文字提取结果</div>
+                <pre class="ocr-result-text">${formatTextBlock(item.raw_text)}</pre>
+              </div>
+              <div class="ocr-result-block">
+                <div class="ocr-result-label">结构化字段</div>
+                <pre class="drawer-raw-json">${formatJsonBlock(item.structured_fields)}</pre>
+              </div>
+            </div>
+          </details>`
+        )
+        .join("")
+    : '<div class="detail-empty">暂无 OCR 提取结果</div>';
+
   $("#taskDetail").innerHTML = `
     <div class="detail-content scroll-y">
       <div class="task-card active">
@@ -161,6 +219,8 @@ async function selectTask(id) {
       <pre class="log-block">${logs}</pre>
       <h3>✅ 勾稽校验</h3>
       <div style="display:grid;gap:8px">${reportsHtml}</div>
+      <h3>🔎 文字提取结果</h3>
+      <div class="ocr-result-list">${ocrHtml}</div>
     </div>`;
   await loadTasks();
 }
@@ -346,9 +406,13 @@ async function openRecord(id) {
         <span class="df-label">来源行号</span>
         <span class="df-value">${detail.source_row || "—"}</span>
       </div>
-      <div class="drawer-raw-json">${JSON.stringify(detail.source_text ? JSON.parse(detail.source_text) : {}, null, 2)}</div>
+      <div class="drawer-section-title">原始提取字段</div>
+      <div class="drawer-extract-panel">
+        <div class="drawer-extract-head">归一化前的原始行字段，便于对照 OCR/解析来源</div>
+        <pre class="drawer-raw-json">${formatJsonBlock(detail.source_text)}</pre>
+      </div>
       <div class="drawer-section-title">完整数据</div>
-      <div class="drawer-raw-json">${JSON.stringify(detail, null, 2)}</div>
+      <div class="drawer-raw-json">${formatJsonBlock(detail)}</div>
     </div>`;
 
   // 打开抽屉

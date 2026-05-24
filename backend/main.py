@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import logging
 from datetime import date
 from pathlib import Path
@@ -12,7 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .database import Base, SessionLocal, engine, ensure_indexes, get_db
-from .models import AuditReport, LedgerRecord, TaskJob
+from .models import AuditReport, LedgerRecord, OcrResult, TaskJob
 from .services import (
     export_task,
     init_db_seed,
@@ -120,6 +121,29 @@ def get_task(task_id: int, db: Session = Depends(get_db)):
     if not task:
         raise HTTPException(status_code=404, detail="任务不存在")
     return task_to_dict(task)
+
+
+@app.get("/api/tasks/{task_id}/ocr-results")
+def get_task_ocr_results(task_id: int, db: Session = Depends(get_db)):
+    task = db.get(TaskJob, task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="任务不存在")
+    ocr_rows = db.scalars(select(OcrResult).where(OcrResult.task_id == task_id).order_by(OcrResult.page_no, OcrResult.id)).all()
+    return {
+        "task_id": task_id,
+        "count": len(ocr_rows),
+        "items": [
+            {
+                "id": row.id,
+                "page_no": row.page_no,
+                "confidence": row.confidence,
+                "raw_text": row.raw_text,
+                "structured_fields": json.loads(row.structured_fields) if row.structured_fields else {},
+                "source_bbox": row.source_bbox,
+            }
+            for row in ocr_rows
+        ],
+    }
 
 
 @app.get("/api/tasks")
