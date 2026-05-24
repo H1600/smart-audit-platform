@@ -179,7 +179,7 @@
 
       <!-- ==================== Records ==================== -->
       <section id="records" class="view">
-        <!-- 审计汇总卡片 -->
+        <!-- 增强汇总卡片（5 张） -->
         <div class="audit-summary">
           <div class="summary-card sc-total">
             <span class="sc-label">总记录</span>
@@ -193,13 +193,30 @@
             <span class="sc-label">贷方合计</span>
             <span class="sc-value" id="scCredit">¥0.00</span>
           </div>
-          <div class="summary-card sc-exception">
-            <span class="sc-label">异常记录</span>
+          <div class="summary-card sc-exception" style="cursor:pointer" onclick="applyQuickFilter('exception')">
+            <span class="sc-label">异常记录 <span id="scExceptionRate" class="sc-badge">0%</span></span>
             <span class="sc-value" id="scException">0</span>
           </div>
+          <div class="summary-card sc-avg">
+            <span class="sc-label">平均金额</span>
+            <span class="sc-value" id="scAvg">¥0.00</span>
+            <span class="sc-sub">最大: <span id="scMax">¥0.00</span> · 借贷差: <span id="scDiff">¥0.00</span></span>
+          </div>
         </div>
+
+        <!-- 快捷筛选条 -->
+        <div class="quick-filters" id="quickFilters">
+          <button class="qf-chip active" data-qf="all">📋 全部</button>
+          <button class="qf-chip" data-qf="month">📅 本月</button>
+          <button class="qf-chip" data-qf="quarter">📅 本季度</button>
+          <button class="qf-chip" data-qf="exception">⚠️ 仅异常</button>
+          <button class="qf-chip" data-qf="large">💰 大额 (≥10万)</button>
+          <span class="qf-file-count" id="qfFileCount">📁 涉及 0 个文件</span>
+        </div>
+
         <!-- 筛选与表格区 -->
         <section class="panel records-panel">
+          <!-- 增强筛选栏 + 重置 -->
           <div class="filters">
             <div class="filter-group">
               <label>开始日期</label>
@@ -219,17 +236,41 @@
             </div>
             <div class="filter-group">
               <label>最小金额</label>
-              <input id="minAmount" type="number" step="0.01" />
+              <input id="minAmount" type="number" step="0.01" placeholder="0.00" />
             </div>
-            <div class="filter-group" style="display:flex; align-items:end;">
+            <div class="filter-group">
+              <label>最大金额</label>
+              <input id="maxAmount" type="number" step="0.01" placeholder="0.00" />
+            </div>
+            <div class="filter-group" style="display:flex; align-items:end; gap:6px;">
               <button class="btn btn-primary" id="searchBtn">🔍 查询</button>
+              <button class="btn btn-ghost" id="resetBtn">↻ 重置</button>
             </div>
           </div>
+
+          <!-- 导出工具栏 -->
+          <div class="records-toolbar">
+            <div class="records-toolbar-left">
+              <label class="checkbox-label" title="全选">
+                <input type="checkbox" id="selectAll" />
+              </label>
+              <span id="selectedCount" class="selected-count">已选 0 条</span>
+              <button class="btn btn-ghost btn-sm" id="batchExceptionBtn" disabled>🚫 标记异常</button>
+            </div>
+            <div class="records-toolbar-right">
+              <span class="export-label">导出：</span>
+              <button class="btn btn-ghost btn-sm" data-export-records="excel">📊 Excel</button>
+              <button class="btn btn-ghost btn-sm" data-export-records="csv">📄 CSV</button>
+              <button class="btn btn-ghost btn-sm" data-export-records="json">📋 JSON</button>
+            </div>
+          </div>
+
           <div class="table-wrap">
             <table>
               <thead>
                 <tr>
-                  <th style="width:32px">#</th>
+                  <th style="width:28px"></th>
+                  <th style="width:36px">#</th>
                   <th>日期</th>
                   <th>凭证号</th>
                   <th>科目</th>
@@ -238,13 +279,16 @@
                   <th style="text-align:right">贷方</th>
                   <th style="text-align:right">余额</th>
                   <th style="width:72px">状态</th>
+                  <th style="width:52px">来源</th>
+                  <th style="width:72px">操作</th>
                 </tr>
               </thead>
               <tbody id="recordRows">
-                <tr class="empty-row"><td colspan="9">暂无数据，请先上传并处理文件</td></tr>
+                <tr class="empty-row"><td colspan="12">暂无数据，请先上传并处理文件</td></tr>
               </tbody>
             </table>
           </div>
+
           <div class="pager">
             <span id="recordTotal" class="record-total">0 条记录</span>
             <div class="pager-nav">
@@ -260,11 +304,17 @@
             </select>
           </div>
         </section>
-        <!-- 右侧抽屉：详情面板 -->
+
+        <!-- 右侧抽屉：详情面板（带 Tab） -->
         <aside class="drawer" id="detailDrawer">
           <div class="drawer-head">
             <h3>📌 记录详情</h3>
             <button class="btn-icon" id="closeDrawer">✕</button>
+          </div>
+          <div class="drawer-tabs">
+            <button class="dtab active" data-dtab="detail">明细</button>
+            <button class="dtab" data-dtab="ocr">OCR 原文</button>
+            <button class="dtab" data-dtab="json">原始 JSON</button>
           </div>
           <div class="drawer-body" id="drawerBody">
             <div class="detail-empty">选择一条记录查看明细</div>

@@ -160,11 +160,57 @@ def records(
     voucher_no: str | None = None,
     min_amount: float | None = None,
     max_amount: float | None = None,
+    is_exception: bool | None = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
 ):
-    return query_records(db, start_date, end_date, account, voucher_no, min_amount, max_amount, page, page_size)
+    return query_records(db, start_date, end_date, account, voucher_no, min_amount, max_amount, is_exception, page, page_size)
+
+
+@app.get("/api/records/summary")
+def records_summary(
+    start_date: date | None = None,
+    end_date: date | None = None,
+    account: str | None = None,
+    voucher_no: str | None = None,
+    db: Session = Depends(get_db),
+):
+    """返回聚合统计摘要，供前端汇总卡片使用"""
+    from sqlalchemy import func
+    base = select(LedgerRecord)
+    if start_date:
+        base = base.where(LedgerRecord.record_date >= start_date)
+    if end_date:
+        base = base.where(LedgerRecord.record_date <= end_date)
+    if account:
+        like = f"%{account}%"
+        base = base.where((LedgerRecord.account_code.like(like)) | (LedgerRecord.account_name.like(like)))
+    if voucher_no:
+        base = base.where(LedgerRecord.voucher_no.like(f"%{voucher_no}%"))
+
+    rows = list(db.scalars(base.order_by(LedgerRecord.id)))
+    total = len(rows)
+    debit_sum = sum(r.debit for r in rows)
+    credit_sum = sum(r.credit for r in rows)
+    exc_count = sum(1 for r in rows if r.is_exception)
+    amounts = [max(r.debit, r.credit, abs(r.balance)) for r in rows if max(r.debit, r.credit, abs(r.balance)) > 0]
+    avg_amount = round(sum(amounts) / len(amounts), 2) if amounts else 0.0
+    max_amount_val = max(amounts) if amounts else 0.0
+    balance_diff = round(debit_sum - credit_sum, 2)
+    exception_rate = round(exc_count / total * 100, 1) if total else 0.0
+    file_ids = set(r.file_id for r in rows)
+    return {
+        "total": total,
+        "debit_sum": round(debit_sum, 2),
+        "credit_sum": round(credit_sum, 2),
+        "exception_count": exc_count,
+        "exception_rate": exception_rate,
+        "avg_amount": avg_amount,
+        "max_amount": max_amount_val,
+        "balance_diff": balance_diff,
+        "file_count": len(file_ids),
+    }
 
 
 @app.get("/api/records/{record_id}")
@@ -173,6 +219,20 @@ def record_detail(record_id: int, db: Session = Depends(get_db)):
     if not record:
         raise HTTPException(status_code=404, detail="记录不存在")
     return record_to_dict(record)
+
+
+@app.post("/api/records/{record_id}/toggle-exception")
+def toggle_record_exception(record_id: int, db: Session = Depends(get_db)):
+    record = db.get(LedgerRecord, record_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="记录不存在")
+    record.is_exception = not record.is_exception
+    if record.is_exception and not record.exception_reason:
+        record.exception_reason = "手动标记异常"
+    elif not record.is_exception:
+        record.exception_reason = ""
+    db.commit()
+    return {"id": record.id, "is_exception": record.is_exception}
 
 
 @app.get("/api/reports/{task_id}")

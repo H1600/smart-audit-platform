@@ -850,6 +850,7 @@ def query_records(
     voucher_no: str | None = None,
     min_amount: float | None = None,
     max_amount: float | None = None,
+    is_exception: bool | None = None,
     page: int = 1,
     page_size: int = 20,
 ) -> dict[str, Any]:
@@ -863,6 +864,8 @@ def query_records(
         stmt = stmt.where((LedgerRecord.account_code.like(like)) | (LedgerRecord.account_name.like(like)))
     if voucher_no:
         stmt = stmt.where(LedgerRecord.voucher_no.like(f"%{voucher_no}%"))
+    if is_exception is not None:
+        stmt = stmt.where(LedgerRecord.is_exception == is_exception)
     records = list(db.scalars(stmt.order_by(LedgerRecord.id.desc())))
     if min_amount is not None:
         records = [r for r in records if max(r.debit, r.credit, abs(r.balance)) >= min_amount]

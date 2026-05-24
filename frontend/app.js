@@ -4,6 +4,7 @@ const state = {
   recordPage: 1,
   pageSize: 20,
   recordsTotal: 0,
+  selectedRecordIds: new Set(),
 };
 
 const titles = {
@@ -263,6 +264,10 @@ async function uploadFiles(files) {
 }
 
 /* ===== Records ===== */
+
+// 当前激活的快捷筛选 (null = 全部)
+let activeQuickFilter = null;
+
 function recordQuery() {
   const p = new URLSearchParams({ page: state.recordPage, page_size: state.pageSize });
   const fields = {
@@ -271,9 +276,33 @@ function recordQuery() {
     account: $("#accountFilter").value,
     voucher_no: $("#voucherFilter").value,
     min_amount: $("#minAmount").value,
+    max_amount: $("#maxAmount").value,
   };
   Object.entries(fields).forEach(([k, v]) => v && p.set(k, v));
+  // 快捷筛选中的异常过滤
+  if (activeQuickFilter === "exception") p.set("is_exception", "true");
   return p;
+}
+
+/** 加载汇总卡片（异步，不阻塞表格） */
+async function loadRecordSummary() {
+  try {
+    const p = new URLSearchParams();
+    if ($("#startDate").value) p.set("start_date", $("#startDate").value);
+    if ($("#endDate").value) p.set("end_date", $("#endDate").value);
+    if ($("#accountFilter").value) p.set("account", $("#accountFilter").value);
+    if ($("#voucherFilter").value) p.set("voucher_no", $("#voucherFilter").value);
+    const s = await api(`/api/records/summary?${p}`);
+    $("#scTotal").textContent = s.total;
+    $("#scDebit").textContent = `¥${money(s.debit_sum)}`;
+    $("#scCredit").textContent = `¥${money(s.credit_sum)}`;
+    $("#scException").textContent = s.exception_count;
+    $("#scExceptionRate").textContent = `${s.exception_rate}%`;
+    $("#scAvg").textContent = `¥${money(s.avg_amount)}`;
+    $("#scMax").textContent = `¥${money(s.max_amount)}`;
+    $("#scDiff").textContent = `¥${money(s.balance_diff)}`;
+    $("#qfFileCount").textContent = `📁 涉及 ${s.file_count} 个文件`;
+  } catch { /* 静默 */ }
 }
 
 async function loadRecords() {
@@ -292,6 +321,16 @@ async function loadRecords() {
     $("#prevPage").disabled = data.page <= 1;
     $("#nextPage").disabled = data.page >= totalPages;
 
+    // 空值友好展示函数
+    const nv = (v, fallback = "—") => (v && String(v).trim()) ? escapeHtml(v) : `<span class="null-placeholder">${escapeHtml(fallback)}</span>`;
+    const mc = (v) => money(v);
+
+    if (!data.items.length) {
+      $("#recordRows").innerHTML = '<tr class="empty-row"><td colspan="12">暂无匹配记录，试试调整筛选条件</td></tr>';
+      loadRecordSummary();
+      return;
+    }
+
     // 计算汇总
     let debitSum = 0, creditSum = 0, excCount = 0;
     data.items.forEach(r => {
@@ -304,35 +343,54 @@ async function loadRecords() {
     $("#scCredit").textContent = `¥${money(creditSum)}`;
     $("#scException").textContent = excCount;
 
-    // 空值友好展示函数
-    const nv = (v, fallback = "—") => (v && String(v).trim()) ? v : `<span class="null-placeholder">${fallback}</span>`;
-    const mc = (v) => money(v);
-
-    if (!data.items.length) {
-      $("#recordRows").innerHTML = '<tr class="empty-row"><td colspan="9">暂无匹配记录，试试调整筛选条件</td></tr>';
-      return;
-    }
+    const startIdx = (data.page - 1) * state.pageSize;
+    const safeSummary = (s) => s ? escapeHtml(s.slice(0, 32)) + (s.length > 32 ? "…" : "") : '<span class="null-placeholder">无摘要</span>';
 
     $("#recordRows").innerHTML = data.items
       .map(
-        (r, i) =>
-          `<tr class="${r.is_exception ? "exception" : ""}" data-record="${r.id}">
-            <td style="color:var(--text-tertiary);font-size:12px">${(data.page - 1) * state.pageSize + i + 1}</td>
-            <td>${nv(r.date)}</td>
-            <td>${nv(r.voucher_no)}</td>
-            <td>${r.account_code ? `<span style="color:var(--text-secondary)">${r.account_code}</span>` : ""} ${nv(r.account_name, "未映射")}</td>
-            <td title="${r.summary || ""}">${r.summary ? r.summary.slice(0, 32) + (r.summary.length > 32 ? "…" : "") : '<span class="null-placeholder">无摘要</span>'}</td>
+        (r, i) => {
+          const rowId = `rec-${r.id}`;
+          const checked = state.selectedRecordIds?.has(r.id) ? "checked" : "";
+          return `<tr class="${r.is_exception ? "exception" : ""}" data-record="${r.id}">
+            <td class="td-chk"><input type="checkbox" class="rec-chk" data-id="${r.id}" ${checked} /></td>
+            <td class="td-idx">${startIdx + i + 1}</td>
+            <td class="td-date">${nv(r.date)}</td>
+            <td class="td-voucher">${nv(r.voucher_no)}</td>
+            <td class="td-account">${r.account_code ? `<span class="ac-code">${escapeHtml(r.account_code)}</span>` : ""} <span class="ac-name">${nv(r.account_name, "未映射")}</span></td>
+            <td class="td-summary" title="${escapeHtml(r.summary || "")}">${safeSummary(r.summary)}</td>
             <td class="money-cell">${mc(r.debit)}</td>
             <td class="money-cell">${mc(r.credit)}</td>
             <td class="money-cell">${mc(r.balance)}</td>
             <td>${r.is_exception ? '<span class="badge warn">异常</span>' : '<span class="badge ok">正常</span>'}</td>
-          </tr>`
+            <td class="td-source"><span class="source-badge">P${r.source_page || 1}</span></td>
+            <td class="td-actions">
+              <button class="btn-icon btn-xs" onclick="event.stopPropagation();openRecord(${r.id})" title="查看详情">👁️</button>
+              <button class="btn-icon btn-xs" onclick="event.stopPropagation();toggleRecordException(${r.id})" title="切换异常标记">🚫</button>
+            </td>
+          </tr>`;
+        }
       )
       .join("");
 
-    $$("tbody tr").forEach((el) =>
-      el.addEventListener("click", () => openRecord(Number(el.dataset.record)))
+    // 行点击打开详情
+    $$("#recordRows tr[data-record]").forEach((el) =>
+      el.addEventListener("click", (e) => {
+        if (e.target.closest("input,button")) return;
+        openRecord(Number(el.dataset.record));
+      })
     );
+
+    // 复选框事件
+    $$(".rec-chk").forEach(cb => {
+      cb.addEventListener("change", () => {
+        const id = Number(cb.dataset.id);
+        if (cb.checked) state.selectedRecordIds.add(id);
+        else state.selectedRecordIds.delete(id);
+        updateSelectedCount();
+      });
+    });
+
+    loadRecordSummary();
   } finally {
     panel.classList.remove("records-loading");
   }
@@ -347,14 +405,127 @@ function goToPage(p) {
   }
 }
 
+/* ---- 重置 ---- */
+function resetFilters() {
+  $("#startDate").value = "";
+  $("#endDate").value = "";
+  $("#accountFilter").value = "";
+  $("#voucherFilter").value = "";
+  $("#minAmount").value = "";
+  $("#maxAmount").value = "";
+  activeQuickFilter = null;
+  $$(".qf-chip").forEach(c => c.classList.toggle("active", c.dataset.qf === "all"));
+  state.recordPage = 1;
+  state.selectedRecordIds = new Set();
+  updateSelectedCount();
+  loadRecords();
+}
+
+/* ---- 快捷筛选 ---- */
+function applyQuickFilter(type) {
+  resetFilters(); // 先清空
+  activeQuickFilter = type;
+  $$(".qf-chip").forEach(c => c.classList.toggle("active", c.dataset.qf === type));
+
+  const now = new Date();
+  if (type === "month") {
+    $("#startDate").value = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+    $("#endDate").value = now.toISOString().slice(0, 10);
+  } else if (type === "quarter") {
+    const qStart = Math.floor(now.getMonth() / 3) * 3;
+    $("#startDate").value = new Date(now.getFullYear(), qStart, 1).toISOString().slice(0, 10);
+    $("#endDate").value = now.toISOString().slice(0, 10);
+  } else if (type === "large") {
+    $("#minAmount").value = "100000";
+  }
+  // exception 由 recordQuery() 通过 is_exception 参数处理
+  state.recordPage = 1;
+  loadRecords();
+}
+
+/* ---- 批量选择 ---- */
+function toggleSelectAll() {
+  const all = $("#selectAll");
+  const cbs = $$(".rec-chk");
+  cbs.forEach(cb => { cb.checked = all.checked; cb.dispatchEvent(new Event("change")); });
+}
+
+function updateSelectedCount() {
+  const count = state.selectedRecordIds?.size || 0;
+  $("#selectedCount").textContent = `已选 ${count} 条`;
+  $("#batchExceptionBtn").disabled = count === 0;
+}
+
+/* ---- 切换异常标记 ---- */
+async function toggleRecordException(id) {
+  try {
+    await api(`/api/records/${id}/toggle-exception`, { method: "POST" });
+    loadRecords();
+  } catch (e) {
+    alert("操作失败: " + e.message);
+  }
+}
+
+/* ---- 导出当前筛选结果 ---- */
+async function exportCurrentRecords(fmt) {
+  const p = recordQuery();
+  p.set("page_size", "100000"); // 尽量全量
+  try {
+    const data = await api(`/api/records?${p}`);
+    const items = data.items;
+    if (!items.length) { alert("没有可导出的记录"); return; }
+
+    if (fmt === "json") {
+      const blob = new Blob([JSON.stringify(items, null, 2)], { type: "application/json" });
+      downloadBlob(blob, `records_export_${Date.now()}.json`);
+    } else if (fmt === "csv") {
+      const headers = ["ID", "日期", "凭证号", "科目编码", "科目名称", "摘要", "借方", "贷方", "余额", "异常", "异常原因", "来源页码"];
+      const rows = items.map(r => [
+        r.id, r.date, r.voucher_no, r.account_code, r.account_name,
+        `"${(r.summary || "").replace(/"/g, '""')}"`,
+        r.debit, r.credit, r.balance, r.is_exception ? "是" : "否",
+        `"${(r.exception_reason || "").replace(/"/g, '""')}"`,
+        r.source_page || 1
+      ]);
+      const csv = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+      const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
+      downloadBlob(blob, `records_export_${Date.now()}.csv`);
+    } else if (fmt === "excel") {
+      // 简易导出为 HTML table (可被 Excel 打开)
+      let html = `<table><thead><tr><th>ID</th><th>日期</th><th>凭证号</th><th>科目编码</th><th>科目名称</th><th>摘要</th><th>借方</th><th>贷方</th><th>余额</th><th>异常</th><th>异常原因</th><th>来源页码</th></tr></thead><tbody>`;
+      items.forEach(r => {
+        html += `<tr><td>${r.id}</td><td>${r.date}</td><td>${r.voucher_no}</td><td>${r.account_code}</td><td>${r.account_name}</td><td>${(r.summary || "").replace(/</g, "&lt;")}</td><td>${r.debit}</td><td>${r.credit}</td><td>${r.balance}</td><td>${r.is_exception ? "是" : "否"}</td><td>${(r.exception_reason || "").replace(/</g, "&lt;")}</td><td>${r.source_page || 1}</td></tr>`;
+      });
+      html += "</tbody></table>";
+      const blob = new Blob([html], { type: "application/vnd.ms-excel" });
+      downloadBlob(blob, `records_export_${Date.now()}.xls`);
+    }
+  } catch (e) {
+    alert("导出失败: " + e.message);
+  }
+}
+
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+/* ---- 抽屉详情（带 Tab） ---- */
+let _currentRecordDetail = null;
+
 async function openRecord(id) {
   const detail = await api(`/api/records/${id}`);
+  _currentRecordDetail = detail;
 
-  // 空值友好
-  const nv = (v, fb = "—") => (v && String(v).trim()) ? v : `<span class="null-placeholder">${fb}</span>`;
+  const nv = (v, fb = "—") => (v && String(v).trim()) ? escapeHtml(v) : `<span class="null-placeholder">${escapeHtml(fb)}</span>`;
+  const mc = (v) => money(v);
 
-  const body = $("#drawerBody");
-  body.innerHTML = `
+  // Tab: 明细
+  const detailTab = `
     <div class="drawer-record-card">
       <div class="drawer-field">
         <span class="df-label">记录编号</span>
@@ -374,7 +545,7 @@ async function openRecord(id) {
       </div>
       <div class="drawer-field">
         <span class="df-label">科目</span>
-        <span class="df-value">${detail.account_code ? `<span style="color:var(--text-secondary)">${detail.account_code}</span> ` : ""}${nv(detail.account_name, "未映射")}</span>
+        <span class="df-value">${detail.account_code ? `<span style="color:var(--text-secondary)">${escapeHtml(detail.account_code)}</span> ` : ""}${nv(detail.account_name, "未映射")}</span>
       </div>
       <div class="drawer-field">
         <span class="df-label">摘要</span>
@@ -382,20 +553,20 @@ async function openRecord(id) {
       </div>
       <div class="drawer-field">
         <span class="df-label">借方金额</span>
-        <span class="df-value money">¥${money(detail.debit)}</span>
+        <span class="df-value money">¥${mc(detail.debit)}</span>
       </div>
       <div class="drawer-field">
         <span class="df-label">贷方金额</span>
-        <span class="df-value money">¥${money(detail.credit)}</span>
+        <span class="df-value money">¥${mc(detail.credit)}</span>
       </div>
       <div class="drawer-field">
         <span class="df-label">余额</span>
-        <span class="df-value money">¥${money(detail.balance)}</span>
+        <span class="df-value money">¥${mc(detail.balance)}</span>
       </div>
       ${detail.is_exception ? `
       <div class="drawer-field">
         <span class="df-label">异常原因</span>
-        <span class="df-value exception-reason">${detail.exception_reason}</span>
+        <span class="df-value exception-reason">${escapeHtml(detail.exception_reason)}</span>
       </div>` : ''}
       <div class="drawer-section-title">来源定位</div>
       <div class="drawer-field">
@@ -406,25 +577,63 @@ async function openRecord(id) {
         <span class="df-label">来源行号</span>
         <span class="df-value">${detail.source_row || "—"}</span>
       </div>
-      <div class="drawer-section-title">原始提取字段</div>
-      <div class="drawer-extract-panel">
-        <div class="drawer-extract-head">归一化前的原始行字段，便于对照 OCR/解析来源</div>
-        <pre class="drawer-raw-json">${formatJsonBlock(detail.source_text)}</pre>
+      <div class="drawer-actions">
+        <button class="btn btn-sm btn-ghost" onclick="closeDrawer();scrollToRecord(${detail.id})">📍 定位到表格行</button>
+        <button class="btn btn-sm ${detail.is_exception ? 'btn-secondary' : 'btn-ghost'}" onclick="toggleRecordException(${detail.id})">${detail.is_exception ? '✅ 取消异常' : '🚫 标记异常'}</button>
       </div>
-      <div class="drawer-section-title">完整数据</div>
-      <div class="drawer-raw-json">${formatJsonBlock(detail)}</div>
     </div>`;
+
+  // Tab: OCR 原文
+  const sourceText = safeJsonParse(detail.source_text, detail.source_text);
+  const sourceHtml = typeof sourceText === "object"
+    ? `<pre class="drawer-raw-json">${formatJsonBlock(detail.source_text)}</pre>`
+    : `<div class="drawer-text-block">${formatTextBlock(detail.source_text, "暂无原始文本")}</div>`;
+  const ocrTab = `
+    <div class="drawer-record-card">
+      <div class="drawer-section-title">原始提取字段（归一化前）</div>
+      <div class="drawer-extract-head" style="margin-bottom:8px">从 OCR/解析获得的原始行字段，可对照原始凭证核对</div>
+      ${sourceHtml}
+      ${detail.source_page ? `<div style="margin-top:12px;font-size:12px;color:var(--text-tertiary)">来源: 第 ${detail.source_page} 页${detail.source_row ? `, 行 ${detail.source_row}` : ''}</div>` : ''}
+    </div>`;
+
+  // Tab: 完整 JSON
+  const jsonTab = `
+    <div class="drawer-record-card">
+      <pre class="drawer-raw-json drawer-raw-json-full">${formatJsonBlock(detail)}</pre>
+    </div>`;
+
+  // 存储 tab 内容
+  state._drawerTabs = { detail: detailTab, ocr: ocrTab, json: jsonTab };
+
+  const body = $("#drawerBody");
+  body.innerHTML = detailTab;
 
   // 打开抽屉
   $("#detailDrawer").classList.add("open");
   $("#drawerOverlay").classList.add("show");
   $(".records-panel").classList.add("drawer-open");
+
+  // 激活第一个 tab
+  $$(".dtab").forEach(t => t.classList.remove("active"));
+  document.querySelector('.dtab[data-dtab="detail"]')?.classList.add("active");
+}
+
+function handleDrawerTab(tabName) {
+  $$(".dtab").forEach(t => t.classList.toggle("active", t.dataset.dtab === tabName));
+  if (state._drawerTabs && state._drawerTabs[tabName]) {
+    $("#drawerBody").innerHTML = state._drawerTabs[tabName];
+  }
 }
 
 function closeDrawer() {
   $("#detailDrawer").classList.remove("open");
   $("#drawerOverlay").classList.remove("show");
   $(".records-panel").classList.remove("drawer-open");
+}
+
+function scrollToRecord(id) {
+  const row = document.querySelector(`tr[data-record="${id}"]`);
+  if (row) row.scrollIntoView({ behavior: "smooth", block: "center" });
 }
 
 /* ===== Dashboard ===== */
@@ -654,14 +863,20 @@ function bindEvents() {
     state.recordPage = 1;
     loadRecords();
   });
+  // 重置按钮
+  $("#resetBtn").addEventListener("click", resetFilters);
   // Enter 键在筛选输入框触发查询
-  $$("#startDate, #endDate, #accountFilter, #voucherFilter, #minAmount").forEach(el => {
+  $$("#startDate, #endDate, #accountFilter, #voucherFilter, #minAmount, #maxAmount").forEach(el => {
     el.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
         state.recordPage = 1;
         loadRecords();
       }
     });
+  });
+  // 快捷筛选芯片
+  $$(".qf-chip").forEach(el => {
+    el.addEventListener("click", () => applyQuickFilter(el.dataset.qf));
   });
   $("#prevPage").addEventListener("click", () => {
     if (state.recordPage > 1) { state.recordPage--; loadRecords(); }
@@ -682,7 +897,27 @@ function bindEvents() {
     state.recordPage = 1;
     loadRecords();
   });
-
+  // 全选
+  $("#selectAll").addEventListener("change", toggleSelectAll);
+  // 批量标记异常
+  $("#batchExceptionBtn").addEventListener("click", async () => {
+    if (!state.selectedRecordIds?.size) return;
+    if (!confirm(`确定将选中的 ${state.selectedRecordIds.size} 条记录标记为异常？`)) return;
+    for (const id of state.selectedRecordIds) {
+      try { await api(`/api/records/${id}/toggle-exception`, { method: "POST" }); } catch {}
+    }
+    state.selectedRecordIds = new Set();
+    updateSelectedCount();
+    loadRecords();
+  });
+  // 当前筛选导出
+  $$("[data-export-records]").forEach(el => {
+    el.addEventListener("click", () => exportCurrentRecords(el.dataset.exportRecords));
+  });
+  // 抽屉 tab 切换
+  $$(".dtab").forEach(el => {
+    el.addEventListener("click", () => handleDrawerTab(el.dataset.dtab));
+  });
   $$("[data-export]").forEach((el) =>
     el.addEventListener("click", () => exportTask(el.dataset.export))
   );
